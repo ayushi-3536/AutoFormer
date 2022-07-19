@@ -698,3 +698,30 @@ def xlm_architecture(args):
     args.encoder_ffn_embed_dim = safe_getattr(args, "encoder_ffn_embed_dim", 1280 * 4)
     args.encoder_attention_heads = safe_getattr(args, "encoder_attention_heads", 16)
     base_architecture(args)
+
+
+@register_model_architecture("roberta", "roberta_tiny")
+def roberta_tiny_architecture(args):
+    args.encoder_layers = safe_getattr(args, "encoder_layers", 2)
+    args.encoder_embed_dim = safe_getattr(args, "encoder_embed_dim", 256)
+    args.encoder_ffn_embed_dim = safe_getattr(args, "encoder_ffn_embed_dim", 1024)
+    args.encoder_attention_heads = safe_getattr(args, "encoder_attention_heads", 4)
+    base_architecture(args)
+
+
+@register_model_architecture("roberta", "roberta_xsmall")
+def roberta_xsmall_architecture(args):
+    args.encoder_layers = safe_getattr(args, "encoder_layers", 3)
+    args.encoder_embed_dim = safe_getattr(args, "encoder_embed_dim", 256+128)
+    args.encoder_ffn_embed_dim = safe_getattr(args, "encoder_ffn_embed_dim", 1024+512)
+    args.encoder_attention_heads = safe_getattr(args, "encoder_attention_heads", 6)
+    base_architecture(args)
+
+
+@register_model_architecture("roberta", "roberta_small")
+def roberta_small_architecture(args):
+    args.encoder_layers = safe_getattr(args, "encoder_layers", 6)
+    args.encoder_embed_dim = safe_getattr(args, "encoder_embed_dim", 512)
+    args.encoder_ffn_embed_dim = safe_getattr(args, "encoder_ffn_embed_dim", 2048)
+    args.encoder_attention_heads = safe_getattr(args, "encoder_attention_heads", 8)
+    base_architecture(args)
