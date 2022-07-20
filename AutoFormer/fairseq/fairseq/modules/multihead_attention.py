@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
+from this import s
 from typing import Dict, List, Optional, Tuple
 
 import torch
@@ -23,6 +24,7 @@ from fairseq import utils
 from fairseq.incremental_decoding_utils import with_incremental_state
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
+from fairseq.modules.linear_super import LinearSuper
 
 
 # TODO: move this into xformers?
@@ -116,22 +118,31 @@ class MultiheadAttention(nn.Module):
         self.self_attention = self_attention
         self.encoder_decoder_attention = encoder_decoder_attention
 
+        # Attributes affected by sampling 
+        # We use these `super_<attr>` attributes to keep the original value
+        # `set_sample_config` modifies the corresponding <attr>'s value.
+        self.super_embed_dim = embed_dim
+        self.super_k_dim = self.kdim
+        self.super_v_dim = self.vdim
+        self.super_num_heads = num_heads
+        self.super_scaling = self.scaling
+
         assert not self.self_attention or self.qkv_same_dim, (
             "Self-attention requires query, key and " "value to be of the same size"
         )
 
         self.k_proj = quant_noise(
-            nn.Linear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
+            LinearSuper(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
         )
         self.v_proj = quant_noise(
-            nn.Linear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
+            LinearSuper(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
         )
         self.q_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            LinearSuper(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
         )
 
         self.out_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            LinearSuper(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
         )
 
         if add_bias_kv:
@@ -465,6 +476,22 @@ class MultiheadAttention(nn.Module):
         # TODO: support returning attention weights if needed.
         return y, None
 
+    def set_sample_config(self,
+                          sample_embed_dim,
+                          sample_num_heads, 
+                          sample_k_dim=None,
+                          sample_v_dim=None,
+    ):
+        self.embed_dim = sample_embed_dim
+        self.num_heads = sample_num_heads
+        self.kdim = sample_embed_dim if sample_k_dim is None else sample_k_dim
+        self.vdim = sample_embed_dim if sample_v_dim is None else sample_v_dim
+        self.scaling = (sample_embed_dim // sample_num_heads) ** -0.5
+
+        self.q_proj.set_sample_config(self.embed_dim, self.embed_dim)
+        self.k_proj.set_sample_config(self.kdim, self.embed_dim)
+
+
     def forward(
         self,
         query,
@@ -539,24 +566,24 @@ class MultiheadAttention(nn.Module):
                     query,
                     key,
                     value,
-                    self.embed_dim,
-                    self.num_heads,
+                    self.sample_embed_dim,
+                    self.sample_num_heads,
                     torch.empty([0]),
                     torch.cat((self.q_proj.bias, self.k_proj.bias, self.v_proj.bias)),
-                    self.bias_k,
-                    self.bias_v,
+                    self.bias_k[...,:self.embed_dim],
+                    self.bias_v[...,:self.embed_dim],
                     self.add_zero_attn,
                     self.dropout_module.p,
-                    self.out_proj.weight,
-                    self.out_proj.bias,
+                    self.out_proj.samples['weight'],
+                    self.out_proj.samples['bias'],
                     self.training or self.dropout_module.apply_during_inference,
                     key_padding_mask,
                     need_weights,
                     attn_mask,
                     use_separate_proj_weight=True,
-                    q_proj_weight=self.q_proj.weight,
-                    k_proj_weight=self.k_proj.weight,
-                    v_proj_weight=self.v_proj.weight,
+                    q_proj_weight=self.q_proj.samples['weight'],
+                    k_proj_weight=self.k_proj.samples['weight'],
+                    v_proj_weight=self.v_proj.samples['weight'],
                 )
 
         if incremental_state is not None:
