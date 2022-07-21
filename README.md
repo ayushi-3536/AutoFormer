@@ -1,11 +1,4 @@
 
-# Neureal Architecture Design and Search
-
-***This is a collection of our AutoML-NAS work***
-
-> [**AutoFormer**](./AutoFormer) (```@ICCV'21```): **AutoFormer: Searching Transformers for Visual Recognition**
-
-## Works
 
 ### [AutoFormer](./AutoFormer)
 
