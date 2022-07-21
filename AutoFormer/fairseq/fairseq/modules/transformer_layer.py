@@ -13,6 +13,7 @@ from fairseq import utils
 from fairseq.models.transformer import TransformerConfig
 from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
+from fairseq.modules.linear_super import LinearSuper
 from fairseq.modules.quant_noise import quant_noise
 
 
@@ -71,6 +72,13 @@ class TransformerEncoderLayerBase(nn.Module):
         self.num_heads = cfg.encoder.attention_heads
         self.load_to_BT = False
         self.ever_training = False
+
+        # Attributes affected by sampling 
+        # We use these `super_<attr>` attributes to keep the original value
+        # `set_sample_config` modifies the corresponding <attr>'s value.
+        self.super_embed_dim = self.embed_dim
+        self.super_num_heads = self.num_heads
+
         # For BT, we need continuous mem
         self.in_proj_weight = torch.nn.Parameter(
             torch.zeros(
@@ -184,12 +192,12 @@ class TransformerEncoderLayerBase(nn.Module):
 
     def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
         return quant_noise(
-            nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
+            LinearSuper(input_dim, output_dim), p=q_noise, block_size=qn_block_size
         )
 
     def build_fc2(self, input_dim, output_dim, q_noise, qn_block_size):
         return quant_noise(
-            nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
+            LinearSuper(input_dim, output_dim), p=q_noise, block_size=qn_block_size
         )
 
     def _get_fc_rank(self, remove_num: int) -> List[int]:
@@ -274,6 +282,11 @@ class TransformerEncoderLayerBase(nn.Module):
                 if k in state_dict:
                     state_dict["{}.{}.{}".format(name, new, m)] = state_dict[k]
                     del state_dict[k]
+
+    def set_sample_config(self,
+                          sample_embed_dim,
+                          sample_num_heads):
+        pass
 
     def forward(
         self,
