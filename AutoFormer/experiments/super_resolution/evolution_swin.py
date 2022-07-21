@@ -23,8 +23,12 @@ logger.add(sys.stdout, level='DEBUG')
 
 def decode_cand_tuple(cand_tuple):
     logger.debug(f'cand tuple:{cand_tuple}')
-    depth = cand_tuple[0]
-    return depth, list(cand_tuple[1:depth + 1]), list(cand_tuple[depth + 1: 2 * depth + 1]), cand_tuple[-1]
+    # Example: (3, 1.5, 1.0, 1.5, 5, 5, 5, 45, 45, 60, 2)
+    rstb_num = cand_tuple[0]
+    return rstb_num, list(cand_tuple[1:rstb_num + 1]),\
+           list(cand_tuple[rstb_num + 1: 2 * rstb_num + 1]),\
+           list(cand_tuple[2*rstb_num + 1: 3 * rstb_num + 1]),\
+           cand_tuple[-1]
 
 
 class EvolutionSearcher(object):
@@ -89,7 +93,7 @@ class EvolutionSearcher(object):
         info = self.vis_dict[cand]
         if 'visited' in info:
             return False
-        depth, mlp_ratio, num_heads, embed_dim = decode_cand_tuple(cand)
+        rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
         sampled_config = {}
         sampled_config['layer_num'] = depth
         sampled_config['mlp_ratio'] = mlp_ratio
