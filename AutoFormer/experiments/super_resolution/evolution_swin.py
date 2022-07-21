@@ -193,30 +193,33 @@ class EvolutionSearcher(object):
 
         def random_func():
             cand = list(random.choice(self.keep_top_k[k]))
-            depth, mlp_ratio, num_heads, embed_dim = decode_cand_tuple(cand)
+            rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
             random_s = random.random()
 
             # depth
             if random_s < s_prob:
-                new_depth = random.choice(self.choices['depth'])
+                new_rstb_num = random.choice(self.choices['rstb_num'])
 
-                if new_depth > depth:
-                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in range(new_depth - depth)]
-                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_depth - depth)]
+                if new_rstb_num > rstb_num:
+                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in range(new_rstb_num - rstb_num)]
+                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_rstb_num - rstb_num)]
+                    embed_dim = embed_dim + [random.choice(self.choices['embed_dim']) for _ in range(new_rstb_num - rstb_num)]
                 else:
-                    mlp_ratio = mlp_ratio[:new_depth]
-                    num_heads = num_heads[:new_depth]
+                    mlp_ratio = mlp_ratio[:new_rstb_num]
+                    num_heads = num_heads[:new_rstb_num]
+                    embed_dim = embed_dim[:new_rstb_num]
 
-                depth = new_depth
+                rstb_num = new_rstb_num
+
             # mlp_ratio
-            for i in range(depth):
+            for i in range(rstb_num):
                 random_s = random.random()
                 if random_s < m_prob:
                     mlp_ratio[i] = random.choice(self.choices['mlp_ratio'])
 
             # num_heads
 
-            for i in range(depth):
+            for i in range(rstb_num):
                 random_s = random.random()
                 if random_s < m_prob:
                     num_heads[i] = random.choice(self.choices['num_heads'])
@@ -225,9 +228,17 @@ class EvolutionSearcher(object):
             random_s = random.random()
             if random_s < s_prob:
                 embed_dim = random.choice(self.choices['embed_dim'])
+                for i in range(rstb_num):
+                    embed_dim[i] = embed_dim
 
-            result_cand = [depth] + mlp_ratio + num_heads + [embed_dim]
+            # stl_num
+            random_s = random.random()
+            if random_s < s_prob:
+                stl_num = random.choice(self.choices['stl_num'])
 
+            result_cand = [rstb_num] + mlp_ratio + num_heads + embed_dim + [stl_num]
+
+            logger.debug(f'mutated cand:{result_cand}')
             return tuple(result_cand)
 
         cand_iter = self.stack_random_cand(random_func)
