@@ -94,11 +94,18 @@ class EvolutionSearcher(object):
         if 'visited' in info:
             return False
         rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
+
+
+        logger.debug(f'rstb_num:{rstb_num}, mlp_ratio"{mlp_ratio}, numhead:{num_heads}, embed dim:{embed_dim}, stl_num:{stl_num}')
         sampled_config = {}
-        sampled_config['layer_num'] = depth
-        sampled_config['mlp_ratio'] = mlp_ratio
+        sampled_config['rstb_num'] = rstb_num
+        sampled_config['stl_num'] = stl_num
         sampled_config['num_heads'] = num_heads
-        sampled_config['embed_dim'] = [embed_dim] * depth
+        sampled_config['embed_dim'] = embed_dim
+        sampled_config['mlp_ratio'] = mlp_ratio
+        
+        logger.debug(f'sampled_config:{sampled_config}')
+
         n_parameters = self.model_without_ddp.get_sampled_params_numel(sampled_config)
         info['params'] = n_parameters / 10. ** 6
 
@@ -115,8 +122,8 @@ class EvolutionSearcher(object):
                               retrain_config=sampled_config)
         # test_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
         #                       retrain_config=sampled_config)
-
-        info['acc'] = eval_stats['acc1']
+        logger.debug(f'eval stats:{eval_stats}')
+        info['psnr'] = eval_stats['psnr']
         #info['test_acc'] = test_stats['acc1']
 
         info['visited'] = True
@@ -152,15 +159,18 @@ class EvolutionSearcher(object):
         '''
 
         cand_tuple = list()
-        dimensions = ['mlp_ratio', 'num_heads','embed_dim']
+        dimensions = ['mlp_ratio', 'num_heads']
 
         rstb_num = random.choice(self.choices['rstb_num'])
         cand_tuple.append(rstb_num)
         for dimension in dimensions:
             for i in range(rstb_num):
                 cand_tuple.append(random.choice(self.choices[dimension]))
-
+        embed_dim = random.choice(self.choices['embed_dim'])
+        for i in range(rstb_num):
+            cand_tuple.append(embed_dim)
         cand_tuple.append(random.choice(self.choices['stl_num']))
+        logger.debug(f'cand tuple:{cand_tuple}')
         return tuple(cand_tuple)
 
     def get_random(self, num):
