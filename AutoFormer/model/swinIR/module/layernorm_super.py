@@ -30,4 +30,13 @@ class LayerNormSuper(nn.Module):
                             self.sample_weight, self.sample_bias, self.norm.eps)
 
     def calc_sampled_param_num(self):
-        return self.sample_weight.numel() + self.sample_bias.numel()
+        if self.sample_weight is not None:
+            weight = self.sample_weight.numel()
+        else:
+            weight = 0
+        if self.sample_bias is not None:
+            bias = self.sample_bias.numel()
+        else:
+            bias = 0
+
+        return weight + bias

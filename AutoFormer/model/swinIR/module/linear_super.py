@@ -54,15 +54,13 @@ class LinearSuper(nn.Linear):
         return F.linear(x, self.samples['weight'], self.samples['bias']) * (self.sample_scale if self.scale else 1)
 
     def calc_sampled_param_num(self):
-        assert 'weight' in self.samples.keys()
-        weight_numel = self.samples['weight'].numel()
-
-        if self.samples['bias'] is not None:
+        weight_numel = bias_numel = 0
+        if 'weight' in self.samples.keys():
+            weight_numel = self.samples['weight'].numel()
+        if 'bias' in self.samples.keys():
             bias_numel = self.samples['bias'].numel()
-        else:
-            bias_numel = 0
-
         return weight_numel + bias_numel
+
     def get_complexity(self, sequence_length):
         total_flops = 0
         total_flops += sequence_length *  np.prod(self.samples['weight'].size())

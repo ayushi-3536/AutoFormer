@@ -68,7 +68,9 @@ class WindowAttention(nn.Module):
     def calc_sampled_param_num(self):
 
         #self.qkv and self.proj is calculated in Linear super module
-        return self.sample_relative_position_bias_table.numel
+        if self.sample_relative_position_bias_table is not  None:
+            return self.sample_relative_position_bias_table.numel()
+        return 0
 
     def forward(self, x, mask=None):
         """

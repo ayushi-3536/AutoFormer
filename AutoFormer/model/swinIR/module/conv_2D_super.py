@@ -61,5 +61,5 @@ class Conv2DSuper(nn.Module):
                         )
 
     def calc_sampled_param_num(self):
-        return self.conv_sample_weight.numel + self.conv_sample_bias.numel
+        return self.conv_sample_weight.numel() + self.conv_sample_bias.numel()
 
