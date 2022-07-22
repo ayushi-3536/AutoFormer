@@ -35,9 +35,11 @@ class LinearSuper(nn.Linear):
         if bias:
             nn.init.constant_(self.bias, 0.)
 
-    def set_sample_config(self, sample_in_dim, sample_out_dim):
-        self.sample_in_dim = sample_in_dim
-        self.sample_out_dim = sample_out_dim
+    def set_sample_config(self, sample_in_dim=None, sample_out_dim=None):
+        if sample_in_dim is not None:
+            self.sample_in_dim = sample_in_dim
+        if sample_out_dim is not None:
+            self.sample_out_dim = sample_out_dim
 
         self._sample_parameters()
 
