@@ -286,7 +286,15 @@ class TransformerEncoderLayerBase(nn.Module):
     def set_sample_config(self,
                           sample_embed_dim,
                           sample_num_heads):
-        pass
+        self.self_attn.set_sample_config(
+            sample_embed_dim=sample_embed_dim,
+            sample_num_heads=sample_num_heads
+        )
+
+        # The `cfg.encoder.ffn_embed_dim` value in the middle of these two layers is kept as-is
+        # We might want to have that be configurable as well.
+        self.fc1.set_sample_config(sample_in_dim=sample_embed_dim)
+        self.fc2.set_sample_config(sample_out_dim=sample_embed_dim)
 
     def forward(
         self,
@@ -319,7 +327,11 @@ class TransformerEncoderLayerBase(nn.Module):
             self.ever_training = True
 
         if (
-            self.BT_version
+            # Setting this block to not run.
+            # Not sure how much of a performance hit that is.
+            # Otherwise we'll have to do weight sampling right here in this block.
+            False 
+            and self.BT_version
             and x.dim() == 3
             and self.load_to_BT
             and not self.return_fc
