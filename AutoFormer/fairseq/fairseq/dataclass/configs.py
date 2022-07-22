@@ -99,6 +99,10 @@ class FairseqDataclass:
 class CommonConfig(FairseqDataclass):
     # This is the core dataclass including common parameters shared by all different jobs. Please append your params to other dataclasses if they were
     # used for a particular purpose or task, such as those dedicated for `distributed training`, `optimization`, etc.
+    search_config: Optional[str] = field(
+        default='/home/ajesh/Projects/DL-lab/Main-Project/branch/AutoFormer/AutoFormer/fairseq/examples/roberta/config/pretraining/supernet-T.yaml',
+        metadata={"help": "Seach conf file path"},
+    )
     no_progress_bar: bool = field(
         default=False, metadata={"help": "disable progress bar"}
     )

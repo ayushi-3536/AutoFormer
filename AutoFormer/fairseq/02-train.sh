@@ -1,2 +1,2 @@
 fairseq-hydra-train -m --config-dir examples/roberta/config/pretraining \
---config-name small task.data="$(pwd)/data-bin/wikitext-103"
+--config-name small task.data="$(pwd)/data-bin/wikitext-103" --search-config /home/ajesh/Projects/DL-lab/Main-Project/branch/AutoFormer/AutoFormer/fairseq/examples/roberta/config/pretraining/supernet-T.yaml

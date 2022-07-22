@@ -18,6 +18,7 @@ from fairseq.dataclass.initialize import add_defaults, hydra_init
 from fairseq.dataclass.utils import omegaconf_no_object_check
 from fairseq.utils import reset_logging
 from fairseq_cli.train import main as pre_main
+from fairseq.dataclass.config import update_config_from_file
 
 logger = logging.getLogger("fairseq_cli.hydra_train")
 
@@ -29,6 +30,9 @@ def hydra_main(cfg: FairseqConfig) -> float:
 
 def _hydra_main(cfg: FairseqConfig, **kwargs) -> float:
     add_defaults(cfg)
+
+    # Updated cfg with search param vals
+    cfg = update_config_from_file(cfg, cfg.common.search_config)
 
     if cfg.common.reset_logging:
         reset_logging()  # Hydra hijacks logging, fix that
