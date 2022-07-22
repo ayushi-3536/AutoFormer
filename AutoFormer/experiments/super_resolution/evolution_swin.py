@@ -203,7 +203,7 @@ class EvolutionSearcher(object):
                 if new_rstb_num > rstb_num:
                     mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in range(new_rstb_num - rstb_num)]
                     num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_rstb_num - rstb_num)]
-                    embed_dim = embed_dim + [random.choice(self.choices['embed_dim']) for _ in range(new_rstb_num - rstb_num)]
+                    embed_dim = embed_dim + [embed_dim for _ in range(new_rstb_num - rstb_num)]
                 else:
                     mlp_ratio = mlp_ratio[:new_rstb_num]
                     num_heads = num_heads[:new_rstb_num]
