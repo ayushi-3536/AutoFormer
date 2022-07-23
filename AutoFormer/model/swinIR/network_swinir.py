@@ -798,10 +798,10 @@ class SwinIR(nn.Module):
 
     def calc_sampled_param_num(self):
         # all submodules are calculated in their respective classes
-            return 0
-        # return self.conv_sample_weight.numel() + self.conv_sample_bias.numel() \
-        #        + self.conv_after_body_sample_weight.numel() \
-        #        + self.conv_after_body_sample_bias.numel()
+        #These conv layers are not wrapped with Conv2DSuper
+        return self.conv_sample_weight.numel() + self.conv_sample_bias.numel() \
+               + self.conv_after_body_sample_weight.numel() \
+               + self.conv_after_body_sample_bias.numel()
 
 
     def get_sampled_params_numel(self, config):
