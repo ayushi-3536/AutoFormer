@@ -54,10 +54,12 @@ class LinearSuper(nn.Linear):
         return F.linear(x, self.samples['weight'], self.samples['bias']) * (self.sample_scale if self.scale else 1)
 
     def calc_sampled_param_num(self):
-        assert 'weight' in self.samples.keys()
-        weight_numel = self.samples['weight'].numel()
+        if 'weight' in self.samples.keys():
+            weight_numel = self.samples['weight'].numel()
+        else:
+            weight_numel = 0
 
-        if self.samples['bias'] is not None:
+        if 'bias' in self.samples.keys():
             bias_numel = self.samples['bias'].numel()
         else:
             bias_numel = 0

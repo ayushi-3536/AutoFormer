@@ -1,29 +1,39 @@
 import random
-
+import sys
 import numpy as np
 import time
 import torch
 import torch.backends.cudnn as cudnn
 from pathlib import Path
-
-from lib.datasets import build_dataset
-from lib import utils
-from experiments.super_resolution.supernet_engine import evaluate
-from model.swinIR.network_swinir import SwinIR
+from AutoFormer.lib import utils
+from AutoFormer.experiments.super_resolution.supernet_engine import evaluate
+from AutoFormer.model.swinIR.network_swinir import SwinIR
+from AutoFormer.data.dataset_sr import DatasetSR
+from torch.utils.data.distributed import DistributedSampler
 import argparse
 import os
 import yaml
-from lib.config import cfg, update_config_from_file
+from loguru import logger
+from AutoFormer.utils import utils_option as option
+from torch.utils.data import DataLoader
+from AutoFormer.lib.config import cfg, update_config_from_file
 import json
 
+logger.add(sys.stdout, level='DEBUG')
+
 def decode_cand_tuple(cand_tuple):
-    depth = cand_tuple[0]
-    return depth, list(cand_tuple[1:depth + 1]), list(cand_tuple[depth + 1: 2 * depth + 1]), cand_tuple[-1]
+    logger.debug(f'cand tuple:{cand_tuple}')
+    # Example: (3, 1.5, 1.0, 1.5, 5, 5, 5, 45, 45, 60, 2)
+    rstb_num = cand_tuple[0]
+    return rstb_num, list(cand_tuple[1:rstb_num + 1]),\
+           list(cand_tuple[rstb_num + 1: 2 * rstb_num + 1]),\
+           list(cand_tuple[2*rstb_num + 1: 3 * rstb_num + 1]),\
+           cand_tuple[-1]
 
 
 class EvolutionSearcher(object):
 
-    def __init__(self, args, device, model, model_without_ddp, choices, val_loader, test_loader, output_dir):
+    def __init__(self, args, device, model, model_without_ddp, choices, val_loader, output_dir):
         self.device = device
         self.model = model
         self.model_without_ddp = model_without_ddp
@@ -37,7 +47,6 @@ class EvolutionSearcher(object):
         self.parameters_limits = args.param_limits
         self.min_parameters_limits = args.min_param_limits
         self.val_loader = val_loader
-        self.test_loader = test_loader
         self.output_dir = output_dir
         self.s_prob = args.s_prob
         self.memory = []
@@ -61,7 +70,7 @@ class EvolutionSearcher(object):
         info['epoch'] = self.epoch
         checkpoint_path = os.path.join(self.output_dir, "checkpoint-{}.pth.tar".format(self.epoch))
         torch.save(info, checkpoint_path)
-        print('save checkpoint to', checkpoint_path)
+        logger.debug(f'save checkpoint to:{checkpoint_path}')
 
     def load_checkpoint(self):
         if not os.path.exists(self.checkpoint_path):
@@ -70,10 +79,11 @@ class EvolutionSearcher(object):
         self.memory = info['memory']
         self.candidates = info['candidates']
         self.vis_dict = info['vis_dict']
+        logger.debug(f'vis dict:{self.vis_dict}')
         self.keep_top_k = info['keep_top_k']
         self.epoch = info['epoch']
 
-        print('load checkpoint from', self.checkpoint_path)
+        logger.debug(f'load checkpoint from:{self.checkpoint_path}')
         return True
 
     def is_legal(self, cand):
@@ -83,31 +93,38 @@ class EvolutionSearcher(object):
         info = self.vis_dict[cand]
         if 'visited' in info:
             return False
-        depth, mlp_ratio, num_heads, embed_dim = decode_cand_tuple(cand)
+        rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
+
+
+        logger.debug(f'rstb_num:{rstb_num}, mlp_ratio"{mlp_ratio}, numhead:{num_heads}, embed dim:{embed_dim}, stl_num:{stl_num}')
         sampled_config = {}
-        sampled_config['layer_num'] = depth
-        sampled_config['mlp_ratio'] = mlp_ratio
+        sampled_config['rstb_num'] = rstb_num
+        sampled_config['stl_num'] = stl_num
         sampled_config['num_heads'] = num_heads
-        sampled_config['embed_dim'] = [embed_dim] * depth
+        sampled_config['embed_dim'] = embed_dim
+        sampled_config['mlp_ratio'] = mlp_ratio
+        
+        logger.debug(f'sampled_config:{sampled_config}')
+
         n_parameters = self.model_without_ddp.get_sampled_params_numel(sampled_config)
         info['params'] = n_parameters / 10. ** 6
 
         if info['params'] > self.parameters_limits:
-            print('parameters limit exceed')
+            logger.debug('parameters limit exceed')
             return False
 
         if info['params'] < self.min_parameters_limits:
-            print('under minimum parameters limit')
+            logger.debug('under minimum parameters limit')
             return False
 
-        print("rank:", utils.get_rank(), cand, info['params'])
+        logger.debug(f"rank:{utils.get_rank()},cand:{cand},params:{info['params']}")
         eval_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
                               retrain_config=sampled_config)
-        test_stats = evaluate(self.test_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
-                              retrain_config=sampled_config)
-
-        info['acc'] = eval_stats['acc1']
-        info['test_acc'] = test_stats['acc1']
+        # test_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
+        #                       retrain_config=sampled_config)
+        logger.debug(f'eval stats:{eval_stats}')
+        info['psnr'] = eval_stats['psnr']
+        #info['test_acc'] = test_stats['acc1']
 
         info['visited'] = True
 
@@ -115,7 +132,7 @@ class EvolutionSearcher(object):
 
     def update_top_k(self, candidates, *, k, key, reverse=True):
         assert k in self.keep_top_k
-        print('select ......')
+        logger.debug('select ......')
         t = self.keep_top_k[k]
         t += candidates
         t.sort(key=key, reverse=reverse)
@@ -132,62 +149,77 @@ class EvolutionSearcher(object):
                 yield cand
 
     def get_random_cand(self):
+        '''
+        Generate random configuration:
+        Example: 'stl_num': 2, 'embed_dim': [60, 60, 60, 60], 'num_heads': [5, 5, 5, 5], 'mlp_ratio': [1.5, 1.5, 2,1.0],
+        'rstb_num': 4
+        #
+        Returns:
+            Tuple: Sampled configuration
+        '''
 
         cand_tuple = list()
         dimensions = ['mlp_ratio', 'num_heads']
-        depth = random.choice(self.choices['depth'])
-        cand_tuple.append(depth)
-        for dimension in dimensions:
-            for i in range(depth):
-                cand_tuple.append(random.choice(self.choices[dimension]))
 
-        cand_tuple.append(random.choice(self.choices['embed_dim']))
+        rstb_num = random.choice(self.choices['rstb_num'])
+        cand_tuple.append(rstb_num)
+        for dimension in dimensions:
+            for i in range(rstb_num):
+                cand_tuple.append(random.choice(self.choices[dimension]))
+        embed_dim = random.choice(self.choices['embed_dim'])
+        for i in range(rstb_num):
+            cand_tuple.append(embed_dim)
+        cand_tuple.append(random.choice(self.choices['stl_num']))
+        logger.debug(f'cand tuple:{cand_tuple}')
         return tuple(cand_tuple)
 
     def get_random(self, num):
-        print('random select ........')
+        logger.debug('random select ........')
         cand_iter = self.stack_random_cand(self.get_random_cand)
         while len(self.candidates) < num:
             cand = next(cand_iter)
             if not self.is_legal(cand):
                 continue
             self.candidates.append(cand)
-            print('random {}/{}'.format(len(self.candidates), num))
-        print('random_num = {}'.format(len(self.candidates)))
+            logger.debug(f'random {len(self.candidates)}/{num}')
+        logger.debug(f'random_num = {len(self.candidates)}')
 
     def get_mutation(self, k, mutation_num, m_prob, s_prob):
         assert k in self.keep_top_k
-        print('mutation ......')
+        logger.debug('mutation ......')
         res = []
         iter = 0
         max_iters = mutation_num * 10
 
         def random_func():
             cand = list(random.choice(self.keep_top_k[k]))
-            depth, mlp_ratio, num_heads, embed_dim = decode_cand_tuple(cand)
+            rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
             random_s = random.random()
 
             # depth
             if random_s < s_prob:
-                new_depth = random.choice(self.choices['depth'])
+                new_rstb_num = random.choice(self.choices['rstb_num'])
 
-                if new_depth > depth:
-                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in range(new_depth - depth)]
-                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_depth - depth)]
+                if new_rstb_num > rstb_num:
+                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in range(new_rstb_num - rstb_num)]
+                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_rstb_num - rstb_num)]
+                    embed_dim = embed_dim + [embed_dim for _ in range(new_rstb_num - rstb_num)]
                 else:
-                    mlp_ratio = mlp_ratio[:new_depth]
-                    num_heads = num_heads[:new_depth]
+                    mlp_ratio = mlp_ratio[:new_rstb_num]
+                    num_heads = num_heads[:new_rstb_num]
+                    embed_dim = embed_dim[:new_rstb_num]
 
-                depth = new_depth
+                rstb_num = new_rstb_num
+
             # mlp_ratio
-            for i in range(depth):
+            for i in range(rstb_num):
                 random_s = random.random()
                 if random_s < m_prob:
                     mlp_ratio[i] = random.choice(self.choices['mlp_ratio'])
 
             # num_heads
 
-            for i in range(depth):
+            for i in range(rstb_num):
                 random_s = random.random()
                 if random_s < m_prob:
                     num_heads[i] = random.choice(self.choices['num_heads'])
@@ -196,9 +228,17 @@ class EvolutionSearcher(object):
             random_s = random.random()
             if random_s < s_prob:
                 embed_dim = random.choice(self.choices['embed_dim'])
+                for i in range(rstb_num):
+                    embed_dim[i] = embed_dim
 
-            result_cand = [depth] + mlp_ratio + num_heads + [embed_dim]
+            # stl_num
+            random_s = random.random()
+            if random_s < s_prob:
+                stl_num = random.choice(self.choices['stl_num'])
 
+            result_cand = [rstb_num] + mlp_ratio + num_heads + embed_dim + [stl_num]
+
+            logger.debug(f'mutated cand:{result_cand}')
             return tuple(result_cand)
 
         cand_iter = self.stack_random_cand(random_func)
@@ -208,14 +248,14 @@ class EvolutionSearcher(object):
             if not self.is_legal(cand):
                 continue
             res.append(cand)
-            print('mutation {}/{}'.format(len(res), mutation_num))
+            logger.debug(f'mutation {len(res)}/{mutation_num}')
 
-        print('mutation_num = {}'.format(len(res)))
+        logger.debug(f'mutation_num = {len(res)}')
         return res
 
     def get_crossover(self, k, crossover_num):
         assert k in self.keep_top_k
-        print('crossover ......')
+        logger.debug('crossover ......')
         res = []
         iter = 0
         max_iters = 10 * crossover_num
@@ -238,23 +278,25 @@ class EvolutionSearcher(object):
             if not self.is_legal(cand):
                 continue
             res.append(cand)
-            print('crossover {}/{}'.format(len(res), crossover_num))
+            logger.debug(f'crossover {len(res)}/{crossover_num}')
 
-        print('crossover_num = {}'.format(len(res)))
+        print('crossover_num = {len(res)}')
         return res
 
     def search(self):
-        print(
-            'population_num = {} select_num = {} mutation_num = {} crossover_num = {} random_num = {} max_epochs = {}'.format(
-                self.population_num, self.select_num, self.mutation_num, self.crossover_num,
-                self.population_num - self.mutation_num - self.crossover_num, self.max_epochs))
+        logger.debug(f'population_num = {self.population_num}'
+                     f' select_num = {self.select_num}'
+                     f' mutation_num = {self.mutation_num}'
+                     f' crossover_num = {self.crossover_num}'
+                     f' random_num = {self.population_num - self.mutation_num - self.crossover_num}'
+                     f' max_epochs = {self.max_epochs}')
 
         # self.load_checkpoint()
 
         self.get_random(self.population_num)
 
         while self.epoch < self.max_epochs:
-            print('epoch = {}'.format(self.epoch))
+            logger.debug('epoch = {self.epoch}')
 
             self.memory.append([])
             for cand in self.candidates:
@@ -265,17 +307,15 @@ class EvolutionSearcher(object):
             self.update_top_k(
                 self.candidates, k=50, key=lambda x: self.vis_dict[x]['acc'])
 
-            print('epoch = {} : top {} result'.format(
-                self.epoch, len(self.keep_top_k[50])))
+            logger.debug(f'epoch = {self.epoch} : top {len(self.keep_top_k[50])} result')
             tmp_accuracy = []
             for i, cand in enumerate(self.keep_top_k[50]):
-                print('No.{} {} Top-1 val acc = {}, Top-1 test acc = {}, params = {}'.format(
-                    i + 1, cand, self.vis_dict[cand]['acc'], self.vis_dict[cand]['test_acc'],
-                    self.vis_dict[cand]['params']))
+                logger.debug(f'No.{i+1} {cand} Top-1 val acc = { self.vis_dict[cand]["acc"]},'
+                             f' params = {self.vis_dict[cand]["params"]}')
                 tmp_accuracy.append(self.vis_dict[cand]['acc'])
                 with open('swinir_search.json', 'a+')as f:
                     json.dump({'epoch': self.epoch, 'rank': i+1, 'val_acc_1': self.vis_dict[cand]['acc'],
-                               'test_acc_1': self.vis_dict[cand]['test_acc'], 'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
+                               'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
                     f.write("\n")
             self.top_accuracies.append(tmp_accuracy)
@@ -311,6 +351,8 @@ def get_args_parser():
 
     # config file
     parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
+    parser.add_argument('--opt-doc', type=str, default='.AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json',
+                        help='Path to option JSON file for SwinIR.')
 
     # custom parameters
     parser.add_argument('--platform', default='pai', type=str, choices=['itp', 'pai', 'aml'],
@@ -471,83 +513,51 @@ def main(args):
     update_config_from_file(args.cfg)
     utils.init_distributed_mode(args)
 
-    device = torch.device(args.device)
-
     print(args)
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
-    # save config for later experiments_configs
-    with open(os.path.join(args.output_dir, "config.yaml"), 'w') as f:
-        f.write(args_text)
-    # fix the seed for reproducibility
 
+    # For reading from .json file, major part of .json can be turned into commandline args
+    opt = option.parse(parser.parse_args().opt_doc, is_train=True)
+
+    border = opt['scale']
+    args.scale = border
+
+    device = torch.device(args.device)
+
+    # fix the seed for reproducibility
     seed = args.seed + utils.get_rank()
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(args.seed)
     cudnn.benchmark = True
 
+    # save config for later experiments_configs
+    with open(os.path.join(args.output_dir, "config.yaml"), 'w') as f:
+        f.write(args_text)
+
+
     args.prefetcher = not args.no_prefetcher
 
-    dataset_val, args.nb_classes = build_dataset(is_train=False, args=args, folder_name="subImageNet")
-    dataset_test, _ = build_dataset(is_train=False, args=args, folder_name="val")
+    #for phase, dataset_opt in opt['datasets'].items():
 
-    if args.distributed:
-        num_tasks = utils.get_world_size()
-        global_rank = utils.get_rank()
-        if args.dist_eval:
-            if len(dataset_val) % num_tasks != 0:
-                print(
-                    'Warning: Enabling distributed evaluation with an eval dataset not divisible by process number. '
-                    'This will slightly alter validation results as extra duplicate entries are added to achieve '
-                    'equal num of samples per-process.')
-            sampler_val = torch.utils.data.DistributedSampler(
-                dataset_val, num_replicas=num_tasks, rank=global_rank, shuffle=False)
-            sampler_test = torch.utils.data.DistributedSampler(
-                dataset_test, num_replicas=num_tasks, rank=global_rank, shuffle=False)
-        else:
-            sampler_val = torch.utils.data.SequentialSampler(dataset_val)
-            sampler_test = torch.utils.data.SequentialSampler(dataset_test)
-    else:
-        sampler_val = torch.utils.data.SequentialSampler(dataset_val)
-        sampler_test = torch.utils.data.SequentialSampler(dataset_test)
+        # if phase == 'valid':
+    valid_set = DatasetSR(opt['datasets']['valid'])
+    logger.debug(f"dataset opt:{opt['datasets']['valid']}")
+    data_loader_valid = DataLoader(valid_set, batch_size=1,
+                                          shuffle=False, num_workers=8,
+                                          drop_last=False, pin_memory=True)
 
-    data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=int(2 * args.batch_size),
-        sampler=sampler_test, num_workers=args.num_workers,
-        pin_memory=args.pin_mem, drop_last=False
-    )
-
-    data_loader_val = torch.utils.data.DataLoader(
-        dataset_val, batch_size=int(2 * args.batch_size),
-        sampler=sampler_val, num_workers=args.num_workers,
-        pin_memory=args.pin_mem, drop_last=False
-    )
-
-    print(f"Creating SwinTransformer")
-    print(cfg)
-    # model = SwinIR(img_size=,
-    #                                 patch_size=args.patch_size,
-    #                                 embed_dim=cfg.SUPERNET.EMBED_DIM, depth=cfg.SUPERNET.DEPTH,
-    #                                 num_heads=cfg.SUPERNET.NUM_HEADS,mlp_ratio=cfg.SUPERNET.MLP_RATIO,
-    #                                 qkv_bias=True, drop_rate=args.drop,
-    #                                 drop_path_rate=args.drop_path,
-    #                                 #Todo: figure out usage of gp
-    #                                 #gp=args.gp
-    #
-    #                                 )
-    # Todo: assume equal num_head ~ open for discussion
-
-    model = SwinIR(upscale=args.scale, in_chans=3, img_size=args.input_size, window_size=8,
-                   img_range=1., depths=[cfg.SUPERNET.DEPTH] * 4,
-                   embed_dim=cfg.SUPERNET.EMBED_DIM, num_heads=[cfg.SUPERNET.NUM_HEADS] * 4,
-                   mlp_ratio=cfg.SUPERNET.MLP_RATIO, upsampler='pixelshuffledirect', resi_connection='1conv')
+    logger.debug(f"Creating SwinIRTransformer")
+    logger.debug(cfg)
+    opt_net = opt['netG']
     model = SwinIR(img_size=opt_net['img_size'],
                    window_size=opt_net['window_size'],
                    depths= cfg.SUPERNET.DEPTHS,
                    embed_dim= cfg.SUPERNET.EMBED_DIM,
                    num_heads= cfg.SUPERNET.NUM_HEADS,
                    mlp_ratio= cfg.SUPERNET.MLP_RATIO,
-                   upsampler=opt_net['upsampler'])
+                   upsampler=opt_net['upsampler'],
+                   upscale=border)
 
     model.to(device)
     model_without_ddp = model
@@ -556,14 +566,14 @@ def main(args):
         model_without_ddp = model.module
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print('number of params:', n_parameters)
+    logger.debug(f'number of params:{n_parameters}')
     if args.resume:
         if args.resume.startswith('https'):
             checkpoint = torch.hub.load_state_dict_from_url(
                 args.resume, map_location='cpu', check_hash=True)
         else:
             checkpoint = torch.load(args.resume, map_location='cpu')
-        print("resume from checkpoint: {}".format(args.resume))
+        logger.debug("resume from checkpoint: {args.resume}")
         model_without_ddp.load_state_dict(checkpoint['model'])
 
     choices = {'num_heads': cfg.SEARCH_SPACE.NUM_HEADS, 'mlp_ratio': cfg.SEARCH_SPACE.MLP_RATIO,
@@ -571,12 +581,12 @@ def main(args):
                'stl_num': cfg.SEARCH_SPACE.STL_NUM }
 
     t = time.time()
-    searcher = EvolutionSearcher(args, device, model, model_without_ddp, choices, data_loader_val, data_loader_test,
+    searcher = EvolutionSearcher(args, device, model, model_without_ddp, choices, data_loader_valid,
                                  args.output_dir)
 
     searcher.search()
 
-    print('total searching time = {:.2f} hours'.format(
+    logger.debug('total searching time = {:.2f} hours'.format(
         (time.time() - t) / 3600))
 
 
