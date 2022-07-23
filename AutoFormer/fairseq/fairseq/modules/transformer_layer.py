@@ -13,8 +13,8 @@ from fairseq import utils
 from fairseq.models.transformer import TransformerConfig
 from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
-from fairseq.modules.linear_super import LinearSuper
-from fairseq.modules.layer_norm_super import LayerNormSuper
+from fairseq.modules.autoformer_wrapper.linear_super import LinearSuper
+from fairseq.modules.autoformer_wrapper.layer_norm_super import LayerNormSuper
 from fairseq.modules.quant_noise import quant_noise
 
 
@@ -304,6 +304,7 @@ class TransformerEncoderLayerBase(nn.Module):
     def set_sample_config(self,
                           sample_embed_dim,
                           sample_num_heads):
+
         pass
 
     def forward(
