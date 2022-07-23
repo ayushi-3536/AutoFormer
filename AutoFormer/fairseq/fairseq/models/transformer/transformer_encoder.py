@@ -9,11 +9,13 @@ from typing import Dict, List, Optional
 import torch
 import torch.nn as nn
 from torch import Tensor
+import torch.nn.functional as F
 
 from fairseq import utils
 from fairseq.distributed import fsdp_wrap
 from fairseq.models import FairseqEncoder
 from fairseq.models.transformer import TransformerConfig
+from fairseq.fairseq.modules.linear_super import LinearSuper
 from fairseq.modules import (
     FairseqDropout,
     LayerDropModuleList,
@@ -64,6 +66,11 @@ class TransformerEncoderBase(FairseqEncoder):
 
         self.embed_scale = 1.0 if cfg.no_scale_embedding else math.sqrt(embed_dim)
 
+        # Attributes affected by sampling
+        self.super_embed_scale = self.embed_scale
+        self.embed_dim = embed_dim
+        self.super_embed_dim = embed_dim
+
         self.embed_positions = (
             PositionalEmbedding(
                 cfg.max_source_positions,
@@ -81,7 +88,7 @@ class TransformerEncoderBase(FairseqEncoder):
 
         if not cfg.adaptive_input and cfg.quant_noise.pq > 0:
             self.quant_noise = apply_quant_noise_(
-                nn.Linear(embed_dim, embed_dim, bias=False),
+                LinearSuper(embed_dim, embed_dim, bias=False),
                 cfg.quant_noise.pq,
                 cfg.quant_noise.pq_block_size,
             )
@@ -116,12 +123,35 @@ class TransformerEncoderBase(FairseqEncoder):
         layer = fsdp_wrap(layer, min_num_params=min_params_to_wrap)
         return layer
 
+    def set_sample_config(
+        self, sample_embed_dim, sample_num_heads, sample_depth
+    ):
+        self.embed_dim = sample_embed_dim
+        self.embed_scale = 1.0 if self.cfg.no_scale_embedding else math.sqrt(sample_embed_dim)
+        # For LearnedPositionalEmbedding
+        # Note: For RoBERTa, we always use it (from config) and not SinusoidalPositionalEmbedding
+        # So only the former has sampling capability
+        self.embed_positions.set_sample_config(sample_embed_dim=sample_embed_dim)
+
+        self.quant_noise.set_sample_config(sample_in_dim=sample_embed_dim, sample_out_dim=sample_embed_dim)
+
+        for i, layer in enumerate(self.layers):
+            if i < sample_depth:
+                layer.set_sample_config(sample_embed_dim=sample_embed_dim, 
+                                        sample_num_heads=sample_num_heads)
+            else:
+                layer.set_sample_config(is_identity=True)
+
+
     def forward_embedding(
         self, src_tokens, token_embedding: Optional[torch.Tensor] = None
     ):
         # embed tokens and positions
         if token_embedding is None:
-            token_embedding = self.embed_tokens(src_tokens)
+            # token_embedding = self.embed_tokens(src_tokens)
+
+            # `embed_tokens` is of type `nn.Embedding`. We use a sampling of its weights
+            token_embedding = F.embedding(input=src_tokens, weight=self.embed_tokens.weight[...,:self.embed_dim])
         x = embed = self.embed_scale * token_embedding
         if self.embed_positions is not None:
             x = embed + self.embed_positions(src_tokens)

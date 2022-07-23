@@ -28,6 +28,12 @@ class LearnedPositionalEmbedding(nn.Embedding):
         else:
             self.max_positions = self.num_embeddings
 
+        # Sampling attribute
+        self.sample_embed_dim = embedding_dim
+
+    def set_sample_config(self, sample_embed_dim):
+        self.sample_embed_dim = sample_embed_dim
+
     def forward(
         self,
         input: Tensor,
@@ -52,7 +58,7 @@ class LearnedPositionalEmbedding(nn.Embedding):
                 )
         return F.embedding(
             positions,
-            self.weight,
+            self.weight[...,:self.sample_embed_dim],
             self.padding_idx,
             self.max_norm,
             self.norm_type,

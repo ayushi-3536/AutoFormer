@@ -78,6 +78,7 @@ class TransformerEncoderLayerBase(nn.Module):
         # `set_sample_config` modifies the corresponding <attr>'s value.
         self.super_embed_dim = self.embed_dim
         self.super_num_heads = self.num_heads
+        self.is_identity = False
 
         # For BT, we need continuous mem
         self.in_proj_weight = torch.nn.Parameter(
@@ -284,8 +285,15 @@ class TransformerEncoderLayerBase(nn.Module):
                     del state_dict[k]
 
     def set_sample_config(self,
-                          sample_embed_dim,
-                          sample_num_heads):
+                          is_identity=False,
+                          sample_embed_dim=None,
+                          sample_num_heads=None):
+        if is_identity:
+            self.is_identity = True
+            return
+
+        self.is_identity = False
+        
         self.self_attn.set_sample_config(
             sample_embed_dim=sample_embed_dim,
             sample_num_heads=sample_num_heads
@@ -322,6 +330,9 @@ class TransformerEncoderLayerBase(nn.Module):
         # Note that we cannot use -inf here, because at some edge cases,
         # the attention weight (before softmax) for some padded element in query
         # will become -inf, which results in NaN in model parameters
+
+        if self.is_identity:
+            return x
 
         if self.training:
             self.ever_training = True
