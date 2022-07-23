@@ -242,6 +242,19 @@ class RobertaModel(FairseqEncoderModel):
 
         return cls(args, encoder)
 
+    def set_sample_config(
+        self,
+        sample_embed_dim,
+        sample_num_heads,
+        sample_depth
+    ):
+        # On to RobertaEncoder
+        self.encoder.set_sample_config(
+            sample_embed_dim=sample_embed_dim,
+            sample_num_heads=sample_num_heads,
+            sample_depth=sample_depth,
+        )
+
     def forward(
         self,
         src_tokens,
@@ -581,6 +594,23 @@ class RobertaEncoder(FairseqEncoder):
 
     def build_lm_head(self, embed_dim, output_dim, activation_fn, weight):
         return RobertaLMHead(embed_dim, output_dim, activation_fn, weight)
+
+    def set_sample_config(
+        self,
+        sample_embed_dim,
+        sample_num_heads,
+        sample_depth
+    ):
+        # On to TransformerEncoder / TransformerEncoderBase
+        self.sentence_encoder.set_sample_config(
+            sample_embed_dim=sample_embed_dim,
+            sample_num_heads=sample_num_heads,
+            sample_depth=sample_depth,
+        )
+
+        # On to RobertaLMHead
+        self.lm_head.set_sample_config(sample_embed_dim=sample_embed_dim)
+
 
     def forward(
         self,
