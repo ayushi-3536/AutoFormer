@@ -49,6 +49,7 @@ class TransformerEncoderLayerBase(nn.Module):
         # `set_sample_config` modifies the corresponding <attr>'s value.
         self.super_embed_dim = self.embed_dim
         self.super_num_heads = self.num_heads
+        self.super_ffn_embed = cfg.encoder.ffn_embed_dim
 
         #Super self attention module
         #'Todo: Integrate super self attention module here'
@@ -74,7 +75,7 @@ class TransformerEncoderLayerBase(nn.Module):
         #Todo: cfg.encoder.ffn_embed_dim in search space?, Use super?
         self.fc1 = self.build_fc1(
             self.super_embed_dim,
-            cfg.encoder.ffn_embed_dim,
+            self.super_ffn_embed,
             self.quant_noise,
             self.quant_noise_block_size,
         )
@@ -82,7 +83,7 @@ class TransformerEncoderLayerBase(nn.Module):
         #'Todo: Integrate Super layer'
         #Todo: cfg.encoder.ffn_embed_dim in search space?, Use super?
         self.fc2 = self.build_fc2(
-            cfg.encoder.ffn_embed_dim,
+            self.super_ffn_embed,
             self.super_embed_dim,
             self.quant_noise,
             self.quant_noise_block_size,
