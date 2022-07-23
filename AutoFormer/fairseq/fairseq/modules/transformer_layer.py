@@ -43,6 +43,8 @@ class TransformerEncoderLayerBase(nn.Module):
         self.embed_dim = cfg.encoder.embed_dim
         self.quant_noise = cfg.quant_noise.pq
         self.quant_noise_block_size = cfg.quant_noise.pq_block_size
+        self.num_heads = cfg.encoder.attention_heads
+
 
         # Attributes affected by sampling
         # We use these `super_<attr>` attributes to keep the original value
@@ -91,12 +93,8 @@ class TransformerEncoderLayerBase(nn.Module):
 
         #Super final layer norm
         self.final_layer_norm = LayerNormSuper(self.super_embed_dim, export=cfg.export)
-
-        #Todo: attention head part of search space? Use Super?
-        self.num_heads = cfg.encoder.attention_heads
         self.load_to_BT = False
         self.ever_training = False
-
 
 
         # For BT, we need continuous mem
