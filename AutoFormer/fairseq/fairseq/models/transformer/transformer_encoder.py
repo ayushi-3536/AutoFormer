@@ -127,7 +127,7 @@ class TransformerEncoderBase(FairseqEncoder):
     def set_sample_config(
         self, sample_embed_dim: List, sample_ffn_embed_dim: List, sample_num_heads: List, sample_depth: int
     ):
-        self.embed_dim = sample_embed_dim
+        self.embed_dim = sample_embed_dim[0]
         self.embed_scale = 1.0 if self.cfg.no_scale_embedding else math.sqrt(sample_embed_dim)
         # For LearnedPositionalEmbedding
         # Note: For RoBERTa, we always use it (from config) and not SinusoidalPositionalEmbedding
