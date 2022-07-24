@@ -366,6 +366,8 @@ class RSTB(nn.Module):
         self.sample_scale = None
         self.sample_dropout = None
         self.sample_attn_dropout = None
+        self.conv_sample_weight = None
+        self.conv_sample_bias = None
 
         self.residual_group = BasicLayer(dim=dim,
                                          input_resolution=input_resolution,
@@ -465,7 +467,17 @@ class RSTB(nn.Module):
     def calc_sampled_param_num(self):
         # all submodules are calculated in their respective
         logger.debug("RSTB block")
-        return self.conv_sample_weight.numel() + self.conv_sample_bias.numel()
+        if self.conv_sample_weight is not None:
+            weight = self.conv_sample_weight.numel()
+        else:
+            weight = 0
+        
+        if self.conv_sample_bias is not None:
+            bias = self.conv_sample_bias.numel()
+        else:
+            bias = 0
+
+        return weight + bias
 
 
 

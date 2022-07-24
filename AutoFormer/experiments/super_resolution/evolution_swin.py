@@ -396,14 +396,14 @@ def get_args_parser():
     parser.add_argument('--batch-size', default=64, type=int)
 
     # evolution search parameters
-    parser.add_argument('--max-epochs', type=int, default=5)
+    parser.add_argument('--max-epochs', type=int, default=20)
     parser.add_argument('--select-num', type=int, default=10)
-    parser.add_argument('--population-num', type=int, default=10)
+    parser.add_argument('--population-num', type=int, default=50)
     parser.add_argument('--m_prob', type=float, default=0.2)
     parser.add_argument('--s_prob', type=float, default=0.4)
-    parser.add_argument('--crossover-num', type=int, default=5)
+    parser.add_argument('--crossover-num', type=int, default=25)
     parser.add_argument('--epochs', type=int, default=30)
-    parser.add_argument('--mutation-num', type=int, default=5)
+    parser.add_argument('--mutation-num', type=int, default=25)
     parser.add_argument('--param-limits', type=float, default=23)
     parser.add_argument('--min-param-limits', type=float, default=18)
 
