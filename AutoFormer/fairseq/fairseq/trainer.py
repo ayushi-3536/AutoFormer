@@ -799,10 +799,10 @@ class Trainer(object):
 
         config = sample_config(self.cfg.SEARCH_SPACE)
         self.model.set_sample_config(
-            sample_embed_dim=config.EMBED_DIM,
-            sample_ffn_embed_dim=config.FFN_EMBED_DIM,
-            sample_num_heads=config.NUM_HEADS,
-            sample_depth=config.DEPTH,
+            sample_embed_dim=config['EMBED_DIM'],
+            sample_ffn_embed_dim=config['FFN_EMBED_DIM'],
+            sample_num_heads=config['NUM_HEADS'],
+            sample_depth=config['DEPTH'],
         )
 
         for i, sample in enumerate(samples):  # delayed update loop
