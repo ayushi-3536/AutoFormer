@@ -12,11 +12,11 @@ def main():
     }
 
     cfg = {
-            'rstb_num': 3,                   # Num of RSTB layers/blocks in the network
+            'rstb_num': 4,                   # Num of RSTB layers/blocks in the network
             'stl_num': 6,                    # Num STL blocks per RSTB layer
-            'embed_dim': [36, 36, 36, 36],   # Per RSTB layer
-            'mlp_ratio': [2., 2., 1.5, 1.5], # Per RSTB layer
-            'num_heads': [3, 3, 3, 3],       # Per RSTB layer
+            'embed_dim': [60, 60, 60, 60],   # Per RSTB layer
+            'mlp_ratio': [2., 2., 2., 2.], # Per RSTB layer
+            'num_heads': [6, 6, 6, 6],       # Per RSTB layer
     }
 
     model = SwinIR(img_size=64,
@@ -36,7 +36,7 @@ def main():
     # print('Output shape: ', out.shape)
     params = model.get_sampled_params_numel(cfg)
     print("params", params)
-
+    print("super net config", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
 
 if __name__ == '__main__':

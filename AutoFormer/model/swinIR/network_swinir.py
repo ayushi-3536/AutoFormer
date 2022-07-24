@@ -464,8 +464,8 @@ class RSTB(nn.Module):
         return flops
     def calc_sampled_param_num(self):
         # all submodules are calculated in their respective
-        print("RSTB block")
-        return 0
+        logger.debug("RSTB block")
+        return self.conv_sample_weight.numel() + self.conv_sample_bias.numel()
 
 
 
