@@ -338,6 +338,9 @@ class TransformerEncoderLayerBase(nn.Module):
             sample_p=self.super_act_dropout * sample_embed_dim / self.super_embed_dim
         )
 
+        self.self_attn_layer_norm.set_sample_config(sample_embed_dim=sample_embed_dim)
+        self.final_layer_norm.set_sample_config(sample_embed_dim=sample_embed_dim)
+
     def forward(
         self,
         x,
