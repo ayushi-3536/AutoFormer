@@ -134,7 +134,8 @@ class TransformerEncoderBase(FairseqEncoder):
         # So only the former has sampling capability
         self.embed_positions.set_sample_config(sample_embed_dim=sample_embed_dim)
 
-        self.quant_noise.set_sample_config(sample_in_dim=sample_embed_dim, sample_out_dim=sample_embed_dim)
+        if self.quant_noise is not None:
+            self.quant_noise.set_sample_config(sample_in_dim=sample_embed_dim, sample_out_dim=sample_embed_dim)
 
         for i, layer in enumerate(self.layers):
             if i < sample_depth:
