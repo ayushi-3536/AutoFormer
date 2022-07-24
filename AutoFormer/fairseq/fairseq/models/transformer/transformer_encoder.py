@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 import torch.nn.functional as F
+from fairseq.modules.autoformer_wrapper.layer_norm_super import LayerNormSuper
 
 from fairseq import utils
 from fairseq.distributed import fsdp_wrap
@@ -19,7 +20,6 @@ from fairseq.modules.autoformer_wrapper.linear_super import LinearSuper
 from fairseq.modules import (
     FairseqDropout,
     LayerDropModuleList,
-    LayerNorm,
     PositionalEmbedding,
     SinusoidalPositionalEmbedding,
     transformer_layer,
@@ -83,7 +83,7 @@ class TransformerEncoderBase(FairseqEncoder):
             else None
         )
         if cfg.layernorm_embedding:
-            self.layernorm_embedding = LayerNorm(embed_dim, export=cfg.export)
+            self.layernorm_embedding = LayerNormSuper(embed_dim)
         else:
             self.layernorm_embedding = None
 
@@ -106,7 +106,7 @@ class TransformerEncoderBase(FairseqEncoder):
         self.num_layers = len(self.layers)
 
         if cfg.encoder.normalize_before:
-            self.layer_norm = LayerNorm(embed_dim, export=cfg.export)
+            self.layer_norm = LayerNormSuper(embed_dim)
         else:
             self.layer_norm = None
 
@@ -149,6 +149,8 @@ class TransformerEncoderBase(FairseqEncoder):
                 layer.set_sample_config(is_identity=True)
 
         self.dropout_module.set_sample_config(sample_p=self.super_dropout * last_active_embed_dim / self.super_embed_dim)
+        self.layernorm_embedding.set_sample_config(sample_embed_dim=sample_embed_dim[0])
+        self.layer_norm.set_sample_config(sample_embed_dim=last_active_embed_dim)
 
     def forward_embedding(
         self, src_tokens, token_embedding: Optional[torch.Tensor] = None
