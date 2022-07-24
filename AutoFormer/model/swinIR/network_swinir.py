@@ -808,14 +808,14 @@ class SwinIR(nn.Module):
         self.set_sample_config(config)
         numels = []
         for name, module in self.named_modules():
-            print("name", name)
-            print("has calc",hasattr(module, 'calc_sampled_param_num'))
+            #print("name", name)
+            #print("has calc",hasattr(module, 'calc_sampled_param_num'))
             if hasattr(module, 'calc_sampled_param_num'):
                 if name.split('.')[0] == 'blocks' and int(name.split('.')[1]) >= config['stl_num']:
                     continue
-                print("module",module)
+                #print("module",module)
                 params = module.calc_sampled_param_num()
-                print("name", name, "params",params)
+                #print("name", name, "params",params)
                 numels.append(params)
 
         return sum(numels)
