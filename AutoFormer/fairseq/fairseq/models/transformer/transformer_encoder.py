@@ -149,8 +149,10 @@ class TransformerEncoderBase(FairseqEncoder):
                 layer.set_sample_config(is_identity=True)
 
         self.dropout_module.set_sample_config(sample_p=self.super_dropout * last_active_embed_dim / self.super_embed_dim)
-        self.layernorm_embedding.set_sample_config(sample_embed_dim=sample_embed_dim[0])
-        self.layer_norm.set_sample_config(sample_embed_dim=last_active_embed_dim)
+        if self.layernorm_embedding is not None:
+            self.layernorm_embedding.set_sample_config(sample_embed_dim=sample_embed_dim[0])
+        if self.layer_norm is not None:
+            self.layer_norm.set_sample_config(sample_embed_dim=last_active_embed_dim)
 
     def forward_embedding(
         self, src_tokens, token_embedding: Optional[torch.Tensor] = None
