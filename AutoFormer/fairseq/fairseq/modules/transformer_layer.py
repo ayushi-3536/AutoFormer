@@ -59,7 +59,7 @@ class TransformerEncoderLayerBase(nn.Module):
         self.self_attn = self.build_self_attention(self.super_embed_dim, cfg)
 
         #Super attention layer norm
-        self.self_attn_layer_norm = LayerNormSuper(self.super_embed_dim, export=cfg.export)
+        self.self_attn_layer_norm = LayerNormSuper(self.super_embed_dim)
 
         self.dropout_module = FairseqDropout(
             cfg.dropout, module_name=self.__class__.__name__
@@ -94,7 +94,7 @@ class TransformerEncoderLayerBase(nn.Module):
         )
 
         #Super final layer norm
-        self.final_layer_norm = LayerNormSuper(self.super_embed_dim, export=cfg.export)
+        self.final_layer_norm = LayerNormSuper(self.super_embed_dim)
         self.load_to_BT = False
         self.ever_training = False
 
