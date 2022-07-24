@@ -6,6 +6,7 @@
 RoBERTa: A Robustly Optimized BERT Pretraining Approach.
 """
 
+from typing import List
 import logging
 
 import torch
@@ -245,10 +246,10 @@ class RobertaModel(FairseqEncoderModel):
 
     def set_sample_config(
         self,
-        sample_embed_dim,
-        sample_ffn_embed_dim,
-        sample_num_heads,
-        sample_depth
+        sample_embed_dim: List,
+        sample_ffn_embed_dim: List,
+        sample_num_heads: List,
+        sample_depth: int
     ):
         # On to RobertaEncoder
         self.encoder.set_sample_config(
@@ -602,10 +603,10 @@ class RobertaEncoder(FairseqEncoder):
 
     def set_sample_config(
         self,
-        sample_embed_dim,
-        sample_ffn_embed_dim,
-        sample_num_heads,
-        sample_depth
+        sample_embed_dim: List,
+        sample_ffn_embed_dim: List,
+        sample_num_heads: List,
+        sample_depth: int
     ):
         # On to TransformerEncoder / TransformerEncoderBase
         self.sentence_encoder.set_sample_config(
@@ -616,7 +617,7 @@ class RobertaEncoder(FairseqEncoder):
         )
 
         # On to RobertaLMHead
-        self.lm_head.set_sample_config(sample_embed_dim=sample_embed_dim)
+        self.lm_head.set_sample_config(sample_embed_dim=sample_embed_dim[-1])
 
 
     def forward(

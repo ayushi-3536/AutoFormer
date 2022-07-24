@@ -125,7 +125,7 @@ class TransformerEncoderBase(FairseqEncoder):
         return layer
 
     def set_sample_config(
-        self, sample_embed_dim, sample_ffn_embed_dim, sample_num_heads, sample_depth
+        self, sample_embed_dim: List, sample_ffn_embed_dim: List, sample_num_heads: List, sample_depth: int
     ):
         self.embed_dim = sample_embed_dim
         self.embed_scale = 1.0 if self.cfg.no_scale_embedding else math.sqrt(sample_embed_dim)
@@ -137,15 +137,18 @@ class TransformerEncoderBase(FairseqEncoder):
         if self.quant_noise is not None:
             self.quant_noise.set_sample_config(sample_in_dim=sample_embed_dim, sample_out_dim=sample_embed_dim)
 
+        last_active_embed_dim = sample_embed_dim[0]
+
         for i, layer in enumerate(self.layers):
             if i < sample_depth:
-                layer.set_sample_config(sample_embed_dim=sample_embed_dim, 
-                                        sample_ffn_embed_dim=sample_ffn_embed_dim,
-                                        sample_num_heads=sample_num_heads)
+                layer.set_sample_config(sample_embed_dim=sample_embed_dim[i],
+                                        sample_ffn_embed_dim=sample_ffn_embed_dim[i],
+                                        sample_num_heads=sample_num_heads[i])
+                last_active_embed_dim = sample_embed_dim[i]
             else:
                 layer.set_sample_config(is_identity=True)
 
-        self.dropout_module.set_sample_config(sample_p=self.super_dropout * sample_embed_dim / self.super_embed_dim)
+        self.dropout_module.set_sample_config(sample_p=self.super_dropout * last_active_embed_dim / self.super_embed_dim)
 
     def forward_embedding(
         self, src_tokens, token_embedding: Optional[torch.Tensor] = None
