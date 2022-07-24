@@ -564,6 +564,9 @@ class MultiheadAttention(nn.Module):
                 )
 
             else:
+                bias_k_sampled = self.bias_k[...,:self.embed_dim] if self.bias_k is not None else self.bias_k
+                bias_v_sampled = self.bias_v[...,:self.embed_dim] if self.bias_v is not None else self.bias_v
+
                 return F.multi_head_attention_forward(
                     query,
                     key,
@@ -572,8 +575,8 @@ class MultiheadAttention(nn.Module):
                     self.num_heads,
                     torch.empty([0]),
                     torch.cat((self.q_proj.bias, self.k_proj.bias, self.v_proj.bias)),
-                    self.bias_k[...,:self.embed_dim],
-                    self.bias_v[...,:self.embed_dim],
+                    bias_k_sampled, 
+                    bias_v_sampled,
                     self.add_zero_attn,
                     self.dropout_module.p,
                     self.out_proj.samples['weight'],
