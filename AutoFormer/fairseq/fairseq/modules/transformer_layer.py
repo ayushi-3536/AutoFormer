@@ -79,7 +79,7 @@ class TransformerEncoderLayerBase(nn.Module):
         #Todo: cfg.encoder.ffn_embed_dim in search space?, Use super?
         self.fc1 = self.build_fc1(
             self.super_embed_dim,
-            self.super_ffn_embed,
+            self.super_ffn_embed_dim,
             self.quant_noise,
             self.quant_noise_block_size,
         )
@@ -87,7 +87,7 @@ class TransformerEncoderLayerBase(nn.Module):
         #'Todo: Integrate Super layer'
         #Todo: cfg.encoder.ffn_embed_dim in search space?, Use super?
         self.fc2 = self.build_fc2(
-            self.super_ffn_embed,
+            self.super_ffn_embed_dim,
             self.super_embed_dim,
             self.quant_noise,
             self.quant_noise_block_size,
