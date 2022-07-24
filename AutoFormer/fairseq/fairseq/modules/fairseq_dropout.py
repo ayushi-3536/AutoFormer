@@ -17,6 +17,7 @@ class FairseqDropout(nn.Module):
     def __init__(self, p, module_name=None):
         super().__init__()
         self.p = p
+        self.super_p = p
         self.module_name = module_name
         self.apply_during_inference = False
 
@@ -25,6 +26,9 @@ class FairseqDropout(nn.Module):
             return F.dropout(x, p=self.p, training=True, inplace=inplace)
         else:
             return x
+
+    def set_sample_config(self, sample_p):
+        self.p = sample_p
 
     def make_generation_fast_(
         self,

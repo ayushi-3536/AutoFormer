@@ -70,6 +70,7 @@ class TransformerEncoderBase(FairseqEncoder):
         self.super_embed_scale = self.embed_scale
         self.embed_dim = embed_dim
         self.super_embed_dim = embed_dim
+        self.super_dropout = cfg.dropout
 
         self.embed_positions = (
             PositionalEmbedding(
@@ -143,6 +144,7 @@ class TransformerEncoderBase(FairseqEncoder):
             else:
                 layer.set_sample_config(is_identity=True)
 
+        self.dropout_module.set_sample_config(sample_p=self.super_dropout * sample_embed_dim / self.super_embed_dim)
 
     def forward_embedding(
         self, src_tokens, token_embedding: Optional[torch.Tensor] = None

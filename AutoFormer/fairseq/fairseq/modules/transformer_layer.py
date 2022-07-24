@@ -52,6 +52,7 @@ class TransformerEncoderLayerBase(nn.Module):
         self.super_embed_dim = self.embed_dim
         self.super_num_heads = self.num_heads
         self.super_ffn_embed_dim = self.ffn_embed_dim
+        self.super_dropout = cfg.dropout
 
         #Super self attention module
         #'Todo: Integrate super self attention module here'
@@ -71,6 +72,7 @@ class TransformerEncoderLayerBase(nn.Module):
         self.activation_dropout_module = FairseqDropout(
             float(activation_dropout_p), module_name=self.__class__.__name__
         )
+        self.super_act_dropout = float(activation_dropout_p)
         self.normalize_before = cfg.encoder.normalize_before
 
         #'Todo: Integrate Super layer'
@@ -328,6 +330,13 @@ class TransformerEncoderLayerBase(nn.Module):
 
         self.fc1.set_sample_config(sample_in_dim=sample_embed_dim, sample_out_dim=sample_ffn_embed_dim)
         self.fc2.set_sample_config(sample_in_dim=sample_ffn_embed_dim, sample_out_dim=sample_embed_dim)
+
+        self.dropout_module.set_sample_config(
+            sample_p=self.super_dropout * sample_embed_dim / self.super_embed_dim
+        )
+        self.activation_dropout_module.set_sample_config(
+            sample_p=self.super_act_dropout * sample_embed_dim / self.super_embed_dim
+        )
 
     def forward(
         self,

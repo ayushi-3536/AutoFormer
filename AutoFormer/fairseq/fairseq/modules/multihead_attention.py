@@ -124,6 +124,7 @@ class MultiheadAttention(nn.Module):
         self.super_k_dim = self.kdim
         self.super_v_dim = self.vdim
         self.super_num_heads = num_heads
+        self.super_dropout = dropout
         self.super_scaling = self.scaling
 
         assert not self.self_attention or self.qkv_same_dim, (
@@ -486,6 +487,8 @@ class MultiheadAttention(nn.Module):
         self.kdim = sample_embed_dim if sample_k_dim is None else sample_k_dim
         self.vdim = sample_embed_dim if sample_v_dim is None else sample_v_dim
         self.scaling = (sample_embed_dim // sample_num_heads) ** -0.5
+
+        self.dropout_module.set_sample_config(sample_p=self.super_dropout * sample_embed_dim / self.super_embed_dim)
 
         self.q_proj.set_sample_config(self.embed_dim, self.embed_dim)
         self.k_proj.set_sample_config(self.kdim, self.embed_dim)
