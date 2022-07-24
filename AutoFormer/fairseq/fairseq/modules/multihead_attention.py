@@ -577,7 +577,7 @@ class MultiheadAttention(nn.Module):
                     self.embed_dim,
                     self.num_heads,
                     torch.empty([0]),
-                    torch.cat((self.q_proj.bias, self.k_proj.bias, self.v_proj.bias)),
+                    torch.cat((self.q_proj.samples['bias'], self.k_proj.samples['bias'], self.v_proj.samples['bias'])),
                     bias_k_sampled, 
                     bias_v_sampled,
                     self.add_zero_attn,
