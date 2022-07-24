@@ -15,7 +15,7 @@ from fairseq import utils
 from fairseq.distributed import fsdp_wrap
 from fairseq.models import FairseqEncoder
 from fairseq.models.transformer import TransformerConfig
-from fairseq.fairseq.modules.linear_super import LinearSuper
+from fairseq.modules.autoformer_wrapper.linear_super import LinearSuper
 from fairseq.modules import (
     FairseqDropout,
     LayerDropModuleList,
