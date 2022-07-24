@@ -124,7 +124,7 @@ class TransformerEncoderBase(FairseqEncoder):
         return layer
 
     def set_sample_config(
-        self, sample_embed_dim, sample_num_heads, sample_depth
+        self, sample_embed_dim, sample_ffn_embed_dim, sample_num_heads, sample_depth
     ):
         self.embed_dim = sample_embed_dim
         self.embed_scale = 1.0 if self.cfg.no_scale_embedding else math.sqrt(sample_embed_dim)
@@ -138,6 +138,7 @@ class TransformerEncoderBase(FairseqEncoder):
         for i, layer in enumerate(self.layers):
             if i < sample_depth:
                 layer.set_sample_config(sample_embed_dim=sample_embed_dim, 
+                                        sample_ffn_embed_dim=sample_ffn_embed_dim,
                                         sample_num_heads=sample_num_heads)
             else:
                 layer.set_sample_config(is_identity=True)

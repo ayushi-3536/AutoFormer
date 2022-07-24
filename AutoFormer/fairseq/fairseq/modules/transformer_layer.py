@@ -44,14 +44,14 @@ class TransformerEncoderLayerBase(nn.Module):
         self.quant_noise = cfg.quant_noise.pq
         self.quant_noise_block_size = cfg.quant_noise.pq_block_size
         self.num_heads = cfg.encoder.attention_heads
-
+        self.ffn_embed_dim = cfg.encoder.ffn_embed_dim
 
         # Attributes affected by sampling
         # We use these `super_<attr>` attributes to keep the original value
         # `set_sample_config` modifies the corresponding <attr>'s value.
         self.super_embed_dim = self.embed_dim
         self.super_num_heads = self.num_heads
-        self.super_ffn_embed = cfg.encoder.ffn_embed_dim
+        self.super_ffn_embed_dim = self.ffn_embed_dim
 
         #Super self attention module
         #'Todo: Integrate super self attention module here'
@@ -310,22 +310,24 @@ class TransformerEncoderLayerBase(nn.Module):
     def set_sample_config(self,
                           is_identity=False,
                           sample_embed_dim=None,
+                          sample_ffn_embed_dim=None,
                           sample_num_heads=None):
         if is_identity:
             self.is_identity = True
             return
 
         self.is_identity = False
+        self.embed_dim = sample_embed_dim
+        self.num_heads = sample_num_heads
+        self.ffn_embed_dim = sample_ffn_embed_dim
         
         self.self_attn.set_sample_config(
             sample_embed_dim=sample_embed_dim,
             sample_num_heads=sample_num_heads
         )
 
-        # The `cfg.encoder.ffn_embed_dim` value in the middle of these two layers is kept as-is
-        # We might want to have that be configurable as well.
-        self.fc1.set_sample_config(sample_in_dim=sample_embed_dim)
-        self.fc2.set_sample_config(sample_out_dim=sample_embed_dim)
+        self.fc1.set_sample_config(sample_in_dim=sample_embed_dim, sample_out_dim=sample_ffn_embed_dim)
+        self.fc2.set_sample_config(sample_in_dim=sample_ffn_embed_dim, sample_out_dim=sample_embed_dim)
 
     def forward(
         self,

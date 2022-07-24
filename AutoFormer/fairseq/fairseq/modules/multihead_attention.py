@@ -23,7 +23,7 @@ from fairseq import utils
 from fairseq.incremental_decoding_utils import with_incremental_state
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
-from modules.autoformer_wrapper.linear_super import LinearSuper
+from fairseq.modules.autoformer_wrapper.linear_super import LinearSuper
 
 
 # TODO: move this into xformers?

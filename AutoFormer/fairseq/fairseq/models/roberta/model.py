@@ -11,7 +11,8 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from fairseq.fairseq.modules.linear_super import LinearSuper
+from fairseq.modules.autoformer_wrapper.layer_norm_super import LayerNormSuper
+from fairseq.modules.autoformer_wrapper.linear_super import LinearSuper
 
 from fairseq import utils
 from fairseq.models import (
@@ -245,12 +246,14 @@ class RobertaModel(FairseqEncoderModel):
     def set_sample_config(
         self,
         sample_embed_dim,
+        sample_ffn_embed_dim,
         sample_num_heads,
         sample_depth
     ):
         # On to RobertaEncoder
         self.encoder.set_sample_config(
             sample_embed_dim=sample_embed_dim,
+            sample_ffn_embed_dim=sample_ffn_embed_dim,
             sample_num_heads=sample_num_heads,
             sample_depth=sample_depth,
         )
@@ -488,10 +491,11 @@ class RobertaLMHead(nn.Module):
         super().__init__()
         self.dense = LinearSuper(embed_dim, embed_dim)
         self.activation_fn = utils.get_activation_fn(activation_fn)
-        self.layer_norm = LayerNorm(embed_dim)
+        self.layer_norm = LayerNormSuper(embed_dim)
 
         # Sampled Attributes
         self.embed_dim = embed_dim
+        self.super_embed_dim = embed_dim
 
         if weight is None:
             weight = nn.Linear(embed_dim, output_dim, bias=False).weight
@@ -501,6 +505,7 @@ class RobertaLMHead(nn.Module):
     def set_sample_config(self, sample_embed_dim):
         self.embed_dim = sample_embed_dim
         self.dense.set_sample_config(sample_in_dim=sample_embed_dim, sample_out_dim=sample_embed_dim)
+        self.layer_norm.set_sample_config(sample_embed_dim=sample_embed_dim)
 
     def forward(self, features, masked_tokens=None, **kwargs):
         # Only project the masked tokens while training,
@@ -598,12 +603,14 @@ class RobertaEncoder(FairseqEncoder):
     def set_sample_config(
         self,
         sample_embed_dim,
+        sample_ffn_embed_dim,
         sample_num_heads,
         sample_depth
     ):
         # On to TransformerEncoder / TransformerEncoderBase
         self.sentence_encoder.set_sample_config(
             sample_embed_dim=sample_embed_dim,
+            sample_ffn_embed_dim=sample_ffn_embed_dim,
             sample_num_heads=sample_num_heads,
             sample_depth=sample_depth,
         )
