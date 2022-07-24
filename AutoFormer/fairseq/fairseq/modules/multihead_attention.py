@@ -4,7 +4,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from this import s
 from typing import Dict, List, Optional, Tuple
 
 import torch
@@ -24,7 +23,7 @@ from fairseq import utils
 from fairseq.incremental_decoding_utils import with_incremental_state
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
-from fairseq.modules.linear_super import LinearSuper
+from modules.autoformer_wrapper.linear_super import LinearSuper
 
 
 # TODO: move this into xformers?

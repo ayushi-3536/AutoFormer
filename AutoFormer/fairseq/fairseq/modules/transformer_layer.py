@@ -13,7 +13,8 @@ from fairseq import utils
 from fairseq.models.transformer import TransformerConfig
 from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
-from fairseq.modules.linear_super import LinearSuper
+from fairseq.modules.autoformer_wrapper.linear_super import LinearSuper
+from fairseq.modules.autoformer_wrapper.layer_norm_super import LayerNormSuper
 from fairseq.modules.quant_noise import quant_noise
 
 
@@ -37,11 +38,28 @@ class TransformerEncoderLayerBase(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.return_fc = return_fc
+
+        #Super embed dim
         self.embed_dim = cfg.encoder.embed_dim
         self.quant_noise = cfg.quant_noise.pq
         self.quant_noise_block_size = cfg.quant_noise.pq_block_size
-        self.self_attn = self.build_self_attention(self.embed_dim, cfg)
-        self.self_attn_layer_norm = LayerNorm(self.embed_dim, export=cfg.export)
+        self.num_heads = cfg.encoder.attention_heads
+
+
+        # Attributes affected by sampling
+        # We use these `super_<attr>` attributes to keep the original value
+        # `set_sample_config` modifies the corresponding <attr>'s value.
+        self.super_embed_dim = self.embed_dim
+        self.super_num_heads = self.num_heads
+        self.super_ffn_embed = cfg.encoder.ffn_embed_dim
+
+        #Super self attention module
+        #'Todo: Integrate super self attention module here'
+        self.self_attn = self.build_self_attention(self.super_embed_dim, cfg)
+
+        #Super attention layer norm
+        self.self_attn_layer_norm = LayerNormSuper(self.super_embed_dim, export=cfg.export)
+
         self.dropout_module = FairseqDropout(
             cfg.dropout, module_name=self.__class__.__name__
         )
@@ -54,22 +72,27 @@ class TransformerEncoderLayerBase(nn.Module):
             float(activation_dropout_p), module_name=self.__class__.__name__
         )
         self.normalize_before = cfg.encoder.normalize_before
+
+        #'Todo: Integrate Super layer'
+        #Todo: cfg.encoder.ffn_embed_dim in search space?, Use super?
         self.fc1 = self.build_fc1(
-            self.embed_dim,
-            cfg.encoder.ffn_embed_dim,
+            self.super_embed_dim,
+            self.super_ffn_embed,
             self.quant_noise,
             self.quant_noise_block_size,
         )
+
+        #'Todo: Integrate Super layer'
+        #Todo: cfg.encoder.ffn_embed_dim in search space?, Use super?
         self.fc2 = self.build_fc2(
-            cfg.encoder.ffn_embed_dim,
-            self.embed_dim,
+            self.super_ffn_embed,
+            self.super_embed_dim,
             self.quant_noise,
             self.quant_noise_block_size,
         )
 
-        self.final_layer_norm = LayerNorm(self.embed_dim, export=cfg.export)
-
-        self.num_heads = cfg.encoder.attention_heads
+        #Super final layer norm
+        self.final_layer_norm = LayerNormSuper(self.super_embed_dim, export=cfg.export)
         self.load_to_BT = False
         self.ever_training = False
 
