@@ -3,7 +3,7 @@ import yaml
 def _update_config(base_cfg, exp_cfg):
     for k, v in exp_cfg.items():
         base_cfg[k] = v
-    print(base_cfg)
+    # print(base_cfg)
     return base_cfg
 
 

@@ -32,6 +32,7 @@ def _hydra_main(cfg: FairseqConfig, **kwargs) -> float:
     add_defaults(cfg)
 
     # Updated cfg with search param vals
+    # After this line we get the search space dict in cfg.SEARCH_SPACE
     cfg = update_config_from_file(cfg, cfg.common.search_config)
 
     if cfg.common.reset_logging:
