@@ -29,6 +29,7 @@ from fairseq.models.ema import build_ema
 from fairseq.nan_detector import NanDetector
 from fairseq.optim import lr_scheduler
 from fairseq.utils import safe_hasattr
+from fairseq.modules.autoformer_wrapper.sampling import sample_config
 
 
 logger = logging.getLogger(__name__)
@@ -795,6 +796,15 @@ class Trainer(object):
 
         # forward and backward pass
         logging_outputs, sample_size, ooms = [], 0, 0
+
+        config = sample_config(self.cfg.SEARCH_SPACE)
+        self.model.set_sample_config(
+            sample_embed_dim=config.EMBED_DIM,
+            sample_ffn_embed_dim=config.FFN_EMBED_DIM,
+            sample_num_heads=config.NUM_HEADS,
+            sample_depth=config.DEPTH,
+        )
+
         for i, sample in enumerate(samples):  # delayed update loop
             sample, is_dummy_batch = self._prepare_sample(sample)
 
