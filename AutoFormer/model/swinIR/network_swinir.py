@@ -11,7 +11,8 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from AutoFormer.lib.utils import calc_dropout
-from AutoFormer.model.swinIR.module import WindowAttention, Conv2DSuper, Mlp, LayerNormSuper
+from AutoFormer.model.swinIR.module import WindowAttention, Mlp, LayerNormSuper, \
+    PatchUnEmbed, PatchEmbed, PatchMerging, UpsampleOneStep, Upsample
 import logging
 
 logger = logging.getLogger('swinIR_model')
@@ -215,55 +216,6 @@ class SwinTransformerBlock(nn.Module):
 
 
 
-class PatchMerging(nn.Module):
-    r""" Patch Merging Layer.
-
-    Args:
-        input_resolution (tuple[int]): Resolution of input feature.
-        dim (int): Number of input channels.
-        norm_layer (nn.Module, optional): Normalization layer.  Default: nn.LayerNorm
-    """
-
-    def __init__(self, input_resolution, dim, norm_layer=nn.LayerNorm):
-        super().__init__()
-        self.input_resolution = input_resolution
-        self.dim = dim
-        self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
-        self.norm = norm_layer(4 * dim)
-
-    def forward(self, x):
-        """
-        x: B, H*W, C
-        """
-        H, W = self.input_resolution
-        B, L, C = x.shape
-        assert L == H * W, "input feature has wrong size"
-        assert H % 2 == 0 and W % 2 == 0, f"x size ({H}*{W}) are not even."
-
-        x = x.view(B, H, W, C)
-
-        x0 = x[:, 0::2, 0::2, :]  # B H/2 W/2 C
-        x1 = x[:, 1::2, 0::2, :]  # B H/2 W/2 C
-        x2 = x[:, 0::2, 1::2, :]  # B H/2 W/2 C
-        x3 = x[:, 1::2, 1::2, :]  # B H/2 W/2 C
-        x = torch.cat([x0, x1, x2, x3], -1)  # B H/2 W/2 4*C
-        x = x.view(B, -1, 4 * C)  # B H/2*W/2 4*C
-
-        x = self.norm(x)
-        x = self.reduction(x)
-
-        return x
-
-    def extra_repr(self) -> str:
-        return f"input_resolution={self.input_resolution}, dim={self.dim}"
-
-    def flops(self):
-        H, W = self.input_resolution
-        flops = H * W * self.dim
-        flops += (H // 2) * (W // 2) * 4 * self.dim * 2 * self.dim
-        return flops
-
-
 class BasicLayer(nn.Module):
     """ A basic Swin Transformer layer for one stage.
 
@@ -366,6 +318,10 @@ class BasicLayer(nn.Module):
 
         # todo: see path merging layer, downsample is None though
 
+    def calc_sampled_param_num(self):
+        # all submodules are calculated in their respective classes
+        return 0
+
 
 class RSTB(nn.Module):
     """Residual Swin Transformer Block (RSTB).
@@ -410,6 +366,8 @@ class RSTB(nn.Module):
         self.sample_scale = None
         self.sample_dropout = None
         self.sample_attn_dropout = None
+        self.conv_sample_weight = None
+        self.conv_sample_bias = None
 
         self.residual_group = BasicLayer(dim=dim,
                                          input_resolution=input_resolution,
@@ -506,152 +464,21 @@ class RSTB(nn.Module):
         flops += self.patch_unembed.flops()
 
         return flops
-
-
-class PatchEmbed(nn.Module):
-    r""" Image to Patch Embedding
-
-    Args:
-        img_size (int): Image size.  Default: 224.
-        patch_size (int): Patch token size. Default: 4.
-        in_chans (int): Number of input image channels. Default: 3.
-        embed_dim (int): Number of linear projection output channels. Default: 96.
-        norm_layer (nn.Module, optional): Normalization layer. Default: None
-    """
-
-    def __init__(self, img_size=224, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
-        super().__init__()
-        img_size = to_2tuple(img_size)
-        patch_size = to_2tuple(patch_size)
-        patches_resolution = [img_size[0] // patch_size[0], img_size[1] // patch_size[1]]
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.patches_resolution = patches_resolution
-        self.num_patches = patches_resolution[0] * patches_resolution[1]
-
-        self.in_chans = in_chans
-        self.embed_dim = embed_dim
-
-        if norm_layer is not None:
-            self.norm = norm_layer(embed_dim)
+    def calc_sampled_param_num(self):
+        # all submodules are calculated in their respective
+        logger.debug("RSTB block")
+        if self.conv_sample_weight is not None:
+            weight = self.conv_sample_weight.numel()
         else:
-            self.norm = None
-
-    def set_sample_config(self, embed_dim):
-        if self.norm is not None:
-            self.norm.set_sample_config(embed_dim)
-
-    def forward(self, x):
-        x = x.flatten(2).transpose(1, 2)  # B Ph*Pw C
-        if self.norm is not None:
-            x = self.norm(x)
-        return x
-
-    def flops(self):
-        flops = 0
-        H, W = self.img_size
-        if self.norm is not None:
-            flops += H * W * self.embed_dim
-        return flops
-
-
-class PatchUnEmbed(nn.Module):
-    r""" Image to Patch Unembedding
-
-    Args:
-        img_size (int): Image size.  Default: 224.
-        patch_size (int): Patch token size. Default: 4.
-        in_chans (int): Number of input image channels. Default: 3.
-        embed_dim (int): Number of linear projection output channels. Default: 96.
-        norm_layer (nn.Module, optional): Normalization layer. Default: None
-    """
-
-    def __init__(self, img_size=224, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
-        super().__init__()
-        img_size = to_2tuple(img_size)
-        patch_size = to_2tuple(patch_size)
-        patches_resolution = [img_size[0] // patch_size[0], img_size[1] // patch_size[1]]
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.patches_resolution = patches_resolution
-        self.num_patches = patches_resolution[0] * patches_resolution[1]
-
-        self.in_chans = in_chans
-        self.embed_dim = embed_dim
-
-    def forward(self, x, x_size):
-        B, HW, C = x.shape
-        x = x.transpose(1, 2).view(B, self.embed_dim, x_size[0], x_size[1])  # B Ph*Pw C
-        return x
-
-    def set_sample_config(self, embed_dim):
-        self.embed_dim = embed_dim
-
-    def flops(self):
-        flops = 0
-        return flops
-
-
-class Upsample(nn.Sequential):
-    """Upsample module.
-
-    Args:
-        scale (int): Scale factor. Supported scales: 2^n and 3.
-        num_feat (int): Channel number of intermediate features.
-    """
-
-    def __init__(self, scale, num_feat):
-        m = []
-        if (scale & (scale - 1)) == 0:  # scale = 2^n
-            for _ in range(int(math.log(scale, 2))):
-                m.append(nn.Conv2d(num_feat, 4 * num_feat, 3, 1, 1))
-                m.append(nn.PixelShuffle(2))
-        elif scale == 3:
-            m.append(nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1))
-            m.append(nn.PixelShuffle(3))
+            weight = 0
+        
+        if self.conv_sample_bias is not None:
+            bias = self.conv_sample_bias.numel()
         else:
-            raise ValueError(f'scale {scale} is not supported. ' 'Supported scales: 2^n and 3.')
-        super(Upsample, self).__init__(*m)
+            bias = 0
 
+        return weight + bias
 
-class UpsampleOneStep(nn.Module):
-    """UpsampleOneStep module (the difference with Upsample is that it always only has 1conv + 1pixelshuffle)
-       Used in lightweight SR to save parameters.
-
-    Args:
-        scale (int): Scale factor. Supported scales: 2^n and 3.
-        num_feat (int): Channel number of intermediate features.
-
-    """
-
-    def __init__(self, scale, num_feat, num_out_ch, input_resolution=None):
-        super().__init__()
-        self.num_feat = num_feat
-        self.input_resolution = input_resolution
-        self.scale = scale
-        self.out_ch = num_out_ch
-        self.layers = nn.ModuleList([
-            Conv2DSuper(num_feat, (scale ** 2) * num_out_ch, 3, 1, 1),
-            nn.PixelShuffle(scale)
-        ])
-
-    def flops(self):
-        H, W = self.input_resolution
-        flops = H * W * self.num_feat * 3 * 9
-        return flops
-
-    def set_sample_config(self,
-                          sample_embed_dim=None
-                          ):
-        self.num_feat = sample_embed_dim
-        # Access Conv2DSuper module and set_sample_config
-        self.layers[0].set_sample_config(in_channels=self.num_feat, 
-                                         out_channels=(self.scale ** 2) * self.out_ch)
-
-    def forward(self, x):
-        for m in self.layers:
-            x = m(x)
-        return x
 
 
 class SwinIR(nn.Module):
@@ -980,6 +807,30 @@ class SwinIR(nn.Module):
         flops += H * W * 3 * self.embed_dim * self.embed_dim
         flops += self.upsample.flops()
         return flops
+
+    def calc_sampled_param_num(self):
+        # all submodules are calculated in their respective classes
+        #These conv layers are not wrapped with Conv2DSuper
+        return self.conv_sample_weight.numel() + self.conv_sample_bias.numel() \
+               + self.conv_after_body_sample_weight.numel() \
+               + self.conv_after_body_sample_bias.numel()
+
+
+    def get_sampled_params_numel(self, config):
+        self.set_sample_config(config)
+        numels = []
+        for name, module in self.named_modules():
+            #print("name", name)
+            #print("has calc",hasattr(module, 'calc_sampled_param_num'))
+            if hasattr(module, 'calc_sampled_param_num'):
+                if name.split('.')[0] == 'blocks' and int(name.split('.')[1]) >= config['stl_num']:
+                    continue
+                #print("module",module)
+                params = module.calc_sampled_param_num()
+                #print("name", name, "params",params)
+                numels.append(params)
+
+        return sum(numels)
 
 
 if __name__ == '__main__':

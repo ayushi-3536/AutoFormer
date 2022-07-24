@@ -23,8 +23,12 @@ logger.add(sys.stdout, level='DEBUG')
 
 def decode_cand_tuple(cand_tuple):
     logger.debug(f'cand tuple:{cand_tuple}')
-    depth = cand_tuple[0]
-    return depth, list(cand_tuple[1:depth + 1]), list(cand_tuple[depth + 1: 2 * depth + 1]), cand_tuple[-1]
+    # Example: (3, 1.5, 1.0, 1.5, 5, 5, 5, 45, 45, 60, 2)
+    rstb_num = cand_tuple[0]
+    return rstb_num, list(cand_tuple[1:rstb_num + 1]),\
+           list(cand_tuple[rstb_num + 1: 2 * rstb_num + 1]),\
+           list(cand_tuple[2*rstb_num + 1: 3 * rstb_num + 1]),\
+           cand_tuple[-1]
 
 
 class EvolutionSearcher(object):
@@ -89,12 +93,19 @@ class EvolutionSearcher(object):
         info = self.vis_dict[cand]
         if 'visited' in info:
             return False
-        depth, mlp_ratio, num_heads, embed_dim = decode_cand_tuple(cand)
+        rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
+
+
+        logger.debug(f'rstb_num:{rstb_num}, mlp_ratio"{mlp_ratio}, numhead:{num_heads}, embed dim:{embed_dim}, stl_num:{stl_num}')
         sampled_config = {}
-        sampled_config['layer_num'] = depth
-        sampled_config['mlp_ratio'] = mlp_ratio
+        sampled_config['rstb_num'] = rstb_num
+        sampled_config['stl_num'] = stl_num
         sampled_config['num_heads'] = num_heads
-        sampled_config['embed_dim'] = [embed_dim] * depth
+        sampled_config['embed_dim'] = embed_dim
+        sampled_config['mlp_ratio'] = mlp_ratio
+        
+        logger.debug(f'sampled_config:{sampled_config}')
+
         n_parameters = self.model_without_ddp.get_sampled_params_numel(sampled_config)
         info['params'] = n_parameters / 10. ** 6
 
@@ -111,8 +122,8 @@ class EvolutionSearcher(object):
                               retrain_config=sampled_config)
         # test_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
         #                       retrain_config=sampled_config)
-
-        info['acc'] = eval_stats['acc1']
+        logger.debug(f'eval stats:{eval_stats}')
+        info['psnr'] = eval_stats['psnr']
         #info['test_acc'] = test_stats['acc1']
 
         info['visited'] = True
@@ -130,6 +141,8 @@ class EvolutionSearcher(object):
     def stack_random_cand(self, random_func, *, batchsize=10):
         while True:
             cands = [random_func() for _ in range(batchsize)]
+            logger.debug(f'random cand generated from mutation:{cands}')
+            logger.debug(f'vis dict:{self.vis_dict}')
             for cand in cands:
                 if cand not in self.vis_dict:
                     self.vis_dict[cand] = {}
@@ -148,15 +161,18 @@ class EvolutionSearcher(object):
         '''
 
         cand_tuple = list()
-        dimensions = ['mlp_ratio', 'num_heads','embed_dim']
+        dimensions = ['mlp_ratio', 'num_heads']
 
         rstb_num = random.choice(self.choices['rstb_num'])
         cand_tuple.append(rstb_num)
         for dimension in dimensions:
             for i in range(rstb_num):
                 cand_tuple.append(random.choice(self.choices[dimension]))
-
+        embed_dim = random.choice(self.choices['embed_dim'])
+        for i in range(rstb_num):
+            cand_tuple.append(embed_dim)
         cand_tuple.append(random.choice(self.choices['stl_num']))
+        logger.debug(f'cand tuple:{cand_tuple}')
         return tuple(cand_tuple)
 
     def get_random(self, num):
@@ -179,30 +195,37 @@ class EvolutionSearcher(object):
 
         def random_func():
             cand = list(random.choice(self.keep_top_k[k]))
-            depth, mlp_ratio, num_heads, embed_dim = decode_cand_tuple(cand)
+            rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
             random_s = random.random()
 
             # depth
             if random_s < s_prob:
-                new_depth = random.choice(self.choices['depth'])
+                new_rstb_num = random.choice(self.choices['rstb_num'])
 
-                if new_depth > depth:
-                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in range(new_depth - depth)]
-                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_depth - depth)]
+                if new_rstb_num > rstb_num:
+                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in range(new_rstb_num - rstb_num)]
+                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_rstb_num - rstb_num)]
+
+                    logger.debug(f'embed dim one:{embed_dim[-1]}, embed dim :{embed_dim}')
+                    embed_dim = embed_dim + [embed_dim[-1] for _ in range(new_rstb_num - rstb_num)]
+                    logger.debug(f'embed dim after:{embed_dim}')
+
                 else:
-                    mlp_ratio = mlp_ratio[:new_depth]
-                    num_heads = num_heads[:new_depth]
+                    mlp_ratio = mlp_ratio[:new_rstb_num]
+                    num_heads = num_heads[:new_rstb_num]
+                    embed_dim = embed_dim[:new_rstb_num]
 
-                depth = new_depth
+                rstb_num = new_rstb_num
+
             # mlp_ratio
-            for i in range(depth):
+            for i in range(rstb_num):
                 random_s = random.random()
                 if random_s < m_prob:
                     mlp_ratio[i] = random.choice(self.choices['mlp_ratio'])
 
             # num_heads
 
-            for i in range(depth):
+            for i in range(rstb_num):
                 random_s = random.random()
                 if random_s < m_prob:
                     num_heads[i] = random.choice(self.choices['num_heads'])
@@ -210,10 +233,21 @@ class EvolutionSearcher(object):
             # embed_dim
             random_s = random.random()
             if random_s < s_prob:
-                embed_dim = random.choice(self.choices['embed_dim'])
+                logger.debug(f'sampled embed dim:{embed_dim}')
+                sampled_embed_dim = random.choice(self.choices['embed_dim'])
+                logger.debug(f'sampled config dim:{sampled_embed_dim}')
+                for i in range(rstb_num):
+                    embed_dim[i] = sampled_embed_dim
+                    logger.debug(f'embed dim while sampling:{embed_dim}')
 
-            result_cand = [depth] + mlp_ratio + num_heads + [embed_dim]
+            # stl_num
+            random_s = random.random()
+            if random_s < s_prob:
+                stl_num = random.choice(self.choices['stl_num'])
 
+            result_cand = [rstb_num] + mlp_ratio + num_heads + embed_dim + [stl_num]
+
+            logger.debug(f'mutated cand:{result_cand}')
             return tuple(result_cand)
 
         cand_iter = self.stack_random_cand(random_func)
@@ -244,7 +278,56 @@ class EvolutionSearcher(object):
                 max_iters_tmp -= 1
                 p1 = random.choice(self.keep_top_k[k])
                 p2 = random.choice(self.keep_top_k[k])
-            return tuple(random.choice([i, j]) for i, j in zip(p1, p2))
+            logger.debug(f"cand p1:{p1}")
+            logger.debug(f"cand p2:{p2}")
+            #rstb_num_1, mlp_ratio_1, num_heads_1, embed_dim_1, stl_num_1 = decode_cand_tuple(p1)
+            #rstb_num_2, mlp_ratio_2, num_heads_2, embed_dim_2, stl_num_2 = decode_cand_tuple(p2)
+            crossover_cfg = []
+            rstb_index = p1[0]
+            embed_dim_index = list(range(2*rstb_index + 1,3 * rstb_index + 1))
+            logger.debug(f'embed dim index:{embed_dim_index}')
+            for idx, (i, j) in enumerate(zip(p1, p2)):
+                if idx not in embed_dim_index:
+                    crossover_cfg.append(random.choice([i, j]))
+                else:
+                    logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx+1}')
+                    if len(crossover_cfg) > idx:
+                        logger.debug('index bigger than len of sampled cfg')
+                        continue
+                    embed_dim = random.choice([i,j])
+                    logger.debug(f'sampled embed_dim:{embed_dim}')
+                    for embed_per_block in range(len(embed_dim_index)):
+                        crossover_cfg.append(embed_dim)
+                        logger.debug(f'appending same embed dim to cfg list:{crossover_cfg}')
+            logger.debug(f'final cfg list:{tuple(crossover_cfg)}')
+            return tuple(crossover_cfg)
+
+
+                
+            #rstb_num = random.choice([rstb_num_1,rstb_num_2])
+            #crossover_cfg.append(rstb_num)
+            #for i in range(rstb_num):
+            #    if len(mlp_ratio_1) < i+1:
+            #            mlp_ratio = mlp_ratio_2[i]
+            #    elif len(mlp_ratio_2) < i+1:
+            #            mlp_ratio = mlp_ratio_1[i]
+            #    else:
+            #            mlp_ratio = random.choice(mlp_ratio_1[i], mlp_ratio_2[i])  
+            #    crossover_cfg.append(mlp_ratio)
+            #        
+            #    if len(num_heads_1) < i+1:
+            #            num_head = num_heads_2[i]
+            #    elif len(num_heads_2) < i+1:
+            #            num_head = num_heads_1[i]
+            #    else:
+            #            num_head = random.choice(num_head_1[i], num_head_2[i])
+            #    crossover_cfg.append(num_head)
+
+
+
+
+
+            #return tuple(crossover_cfg)
 
         cand_iter = self.stack_random_cand(random_func)
         while len(res) < crossover_num and max_iters > 0:
@@ -278,18 +361,18 @@ class EvolutionSearcher(object):
                 self.memory[-1].append(cand)
 
             self.update_top_k(
-                self.candidates, k=self.select_num, key=lambda x: self.vis_dict[x]['acc'])
+                self.candidates, k=self.select_num, key=lambda x: self.vis_dict[x]['psnr'])
             self.update_top_k(
-                self.candidates, k=50, key=lambda x: self.vis_dict[x]['acc'])
+                self.candidates, k=50, key=lambda x: self.vis_dict[x]['psnr'])
 
             logger.debug(f'epoch = {self.epoch} : top {len(self.keep_top_k[50])} result')
             tmp_accuracy = []
             for i, cand in enumerate(self.keep_top_k[50]):
-                logger.debug(f'No.{i+1} {cand} Top-1 val acc = { self.vis_dict[cand]["acc"]},'
+                logger.debug(f'No.{i+1} {cand} val psnr = { self.vis_dict[cand]["psnr"]},'
                              f' params = {self.vis_dict[cand]["params"]}')
-                tmp_accuracy.append(self.vis_dict[cand]['acc'])
+                tmp_accuracy.append(self.vis_dict[cand]['psnr'])
                 with open('swinir_search.json', 'a+')as f:
-                    json.dump({'epoch': self.epoch, 'rank': i+1, 'val_acc_1': self.vis_dict[cand]['acc'],
+                    json.dump({'epoch': self.epoch, 'rank': i+1, 'psnr': self.vis_dict[cand]['psnr'],
                                'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
                     f.write("\n")
