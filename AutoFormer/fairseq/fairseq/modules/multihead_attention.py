@@ -490,8 +490,11 @@ class MultiheadAttention(nn.Module):
 
         self.dropout_module.set_sample_config(sample_p=self.super_dropout * sample_embed_dim / self.super_embed_dim)
 
+        self.out_proj.set_sample_config(self.embed_dim, self.embed_dim)
+
         self.q_proj.set_sample_config(self.embed_dim, self.embed_dim)
         self.k_proj.set_sample_config(self.kdim, self.embed_dim)
+        self.v_proj.set_sample_config(self.vdim, self.embed_dim)
 
 
     def forward(
