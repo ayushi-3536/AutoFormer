@@ -132,7 +132,7 @@ class TransformerEncoderBase(FairseqEncoder):
         # For LearnedPositionalEmbedding
         # Note: For RoBERTa, we always use it (from config) and not SinusoidalPositionalEmbedding
         # So only the former has sampling capability
-        self.embed_positions.set_sample_config(sample_embed_dim=sample_embed_dim)
+        self.embed_positions.set_sample_config(sample_embed_dim=sample_embed_dim[0])
 
         if self.quant_noise is not None:
             self.quant_noise.set_sample_config(sample_in_dim=sample_embed_dim, sample_out_dim=sample_embed_dim)
