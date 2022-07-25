@@ -1,0 +1,51 @@
+SUPERNET:
+  MLP_RATIO: 2.0
+  NUM_HEADS:
+    - 6
+    - 6
+    - 6
+    - 6
+  EMBED_DIM: 60
+  DEPTHS:
+    - 6
+    - 6
+    - 6
+    - 6
+SEARCH_SPACE:
+  MLP_RATIO:
+    - 1.
+    - 1.5
+    - 2
+  NUM_HEADS:
+    - 3
+    - 5
+  EMBED_DIM:
+    - 30
+    - 45
+    - 60
+  RSTB_NUM:
+    - 2
+    - 3
+    - 4
+  STL_NUM:
+    - 2
+    - 4
+    - 6
+RETRAIN:
+  MLP_RATIO:
+    - 2
+    - 1.5
+    - 1.5
+  NUM_HEADS:
+    - 3
+    - 3
+    - 5
+  EMBED_DIM:
+    - 60
+    - 60
+    - 60
+  RSTB_NUM:
+    - 3
+  STL_NUM:
+    - 2
+
