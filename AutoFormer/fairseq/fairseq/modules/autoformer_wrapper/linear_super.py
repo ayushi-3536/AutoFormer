@@ -14,8 +14,13 @@ class LinearSuper(nn.Linear):
         # input_dim and output_dim indicate the current sampled size
         self.sample_in_dim = None
         self.sample_out_dim = None
+        self.sample_scale = 1.
 
-        self.samples = {}
+        # Initialize samples with super weights
+        self.samples = {
+            'weight': self.weight,
+            'bias': self.bias
+        }
 
         self.scale = scale
         self._reset_parameters(bias, uniform_, non_linear)
