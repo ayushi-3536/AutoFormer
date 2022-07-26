@@ -10,9 +10,14 @@ class LayerNormSuper(torch.nn.LayerNorm):
         self.super_embed_dim = super_embed_dim
 
         # the current sampled embed dim
-        self.sample_embed_dim = None
+        # Initialized to super value
+        self.sample_embed_dim = super_embed_dim
 
-        self.samples = {}
+        # Initialize to full weights (and bias)
+        self.samples = {
+            'weight': self.weight,
+            'bias': self.bias
+        }
         self.profiling = False
 
     def profile(self, mode=True):
