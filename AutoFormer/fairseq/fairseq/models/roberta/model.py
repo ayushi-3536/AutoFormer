@@ -259,11 +259,20 @@ class RobertaModel(FairseqEncoderModel):
             sample_depth=sample_depth,
         )
 
-    def get_sampled_params_numel(self, config):
+    def get_sampled_params_numel(self):
+        # We can probably assume the setting will be done beforehand?
         # self.set_sample_config(config)
+
         numels = []
         for name, module in self.named_modules():
             if hasattr(module, 'calc_sampled_param_num'):
+                name_splits = name.split('.')
+                if len(name_splits) >= 4 and name_splits[2] == 'layers':
+                    # E.g. of a relevant module: `encoder.sentence_encoder.layers.20.**`
+                    # If layer is outside range, skip
+                    if int(name_splits[3]) >= self.encoder.sentence_encoder.num_layers:
+                        continue
+
                 params = module.calc_sampled_param_num()
                 numels.append(params)
 
