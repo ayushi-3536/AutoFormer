@@ -259,6 +259,16 @@ class RobertaModel(FairseqEncoderModel):
             sample_depth=sample_depth,
         )
 
+    def get_sampled_params_numel(self, config):
+        # self.set_sample_config(config)
+        numels = []
+        for name, module in self.named_modules():
+            if hasattr(module, 'calc_sampled_param_num'):
+                params = module.calc_sampled_param_num()
+                numels.append(params)
+
+        return sum(numels)
+
     def forward(
         self,
         src_tokens,
@@ -507,6 +517,10 @@ class RobertaLMHead(nn.Module):
         self.embed_dim = sample_embed_dim
         self.dense.set_sample_config(sample_in_dim=sample_embed_dim, sample_out_dim=sample_embed_dim)
         self.layer_norm.set_sample_config(sample_embed_dim=sample_embed_dim)
+
+    
+    def calc_sampled_param_num(self):
+        return self.weight[...,:self.embed_dim].numel() + self.bias.numel()
 
     def forward(self, features, masked_tokens=None, **kwargs):
         # Only project the masked tokens while training,
