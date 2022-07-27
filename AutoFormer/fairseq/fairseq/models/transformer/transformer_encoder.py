@@ -154,9 +154,6 @@ class TransformerEncoderBase(FairseqEncoder):
         if self.layer_norm is not None:
             self.layer_norm.set_sample_config(sample_embed_dim=last_active_embed_dim)
 
-    def calc_sampled_param_num(self):
-        return self.embed_tokens.weight[...,:self.embed_dim].numel()
-
     def forward_embedding(
         self, src_tokens, token_embedding: Optional[torch.Tensor] = None
     ):
