@@ -312,8 +312,9 @@ def main(args):
 
     retrain_config = None
     if args.mode == 'retrain' and "RETRAIN" in cfg:
-        retrain_config = {'layer_num': cfg.RETRAIN.DEPTH, 'embed_dim': [cfg.RETRAIN.EMBED_DIM] * cfg.RETRAIN.DEPTH,
-                          'num_heads': cfg.RETRAIN.NUM_HEADS, 'mlp_ratio': cfg.RETRAIN.MLP_RATIO}
+        retrain_config = {'num_heads': cfg.RETRAIN.NUM_HEADS, 'mlp_ratio': cfg.RETRAIN.MLP_RATIO,
+               'embed_dim': cfg.RETRAIN.EMBED_DIM, 'rstb_num': cfg.RETRAIN.RSTB_NUM,
+               'stl_num': cfg.RETRAIN.STL_NUM }
     if args.eval:
         test_stats = evaluate(data_loader_test, model, device, mode=args.mode, retrain_config=retrain_config,
                               scaling=args.scale)

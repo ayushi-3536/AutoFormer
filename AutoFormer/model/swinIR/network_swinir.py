@@ -823,9 +823,18 @@ class SwinIR(nn.Module):
             #print("name", name)
             #print("has calc",hasattr(module, 'calc_sampled_param_num'))
             if hasattr(module, 'calc_sampled_param_num'):
-                if name.split('.')[0] == 'blocks' and int(name.split('.')[1]) >= config['stl_num']:
-                    continue
-                #print("module",module)
+                name_splits = name.split('.')
+                if name_splits[0] == 'layers': 
+                    # E.g. of a relevant module: `layers.3.residual_group.blocks.4.attn`
+
+                    # If layer is outside range, skip
+                    if int(name_splits[1]) >= config['rstb_num']:
+                        continue
+
+                    # If block is outside range, skip
+                    if len(name_splits) > 3 and name_splits[3] == 'blocks' and int(name_splits[4]) >= config['stl_num']:
+                        continue
+
                 params = module.calc_sampled_param_num()
                 #print("name", name, "params",params)
                 numels.append(params)
