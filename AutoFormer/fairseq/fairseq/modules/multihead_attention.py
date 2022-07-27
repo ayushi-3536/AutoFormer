@@ -496,6 +496,10 @@ class MultiheadAttention(nn.Module):
         self.k_proj.set_sample_config(self.kdim, self.embed_dim)
         self.v_proj.set_sample_config(self.vdim, self.embed_dim)
 
+    def calc_sampled_param_num(self):
+        bias_k_sampled_cnt = self.bias_k[...,:self.embed_dim].numel() if self.bias_k is not None else 0
+        bias_v_sampled_cnt = self.bias_v[...,:self.embed_dim].numel() if self.bias_v is not None else 0
+        return bias_k_sampled_cnt + bias_v_sampled_cnt
 
     def forward(
         self,
