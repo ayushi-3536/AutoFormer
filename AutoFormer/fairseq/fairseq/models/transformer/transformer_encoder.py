@@ -104,6 +104,7 @@ class TransformerEncoderBase(FairseqEncoder):
             [self.build_encoder_layer(cfg) for i in range(cfg.encoder.layers)]
         )
         self.num_layers = len(self.layers)
+        self.super_num_layers = self.num_layers
 
         if cfg.encoder.normalize_before:
             self.layer_norm = LayerNormSuper(embed_dim)
@@ -129,6 +130,7 @@ class TransformerEncoderBase(FairseqEncoder):
     ):
         self.embed_dim = sample_embed_dim[0]
         self.embed_scale = 1.0 if self.cfg.no_scale_embedding else math.sqrt(sample_embed_dim)
+        self.num_layers = sample_depth
         # For LearnedPositionalEmbedding
         # Note: For RoBERTa, we always use it (from config) and not SinusoidalPositionalEmbedding
         # So only the former has sampling capability
