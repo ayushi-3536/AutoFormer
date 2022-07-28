@@ -25,3 +25,4 @@ KAIR
 */testsets/*
 !*/testsets/Set14/LRbicx2/facex2.png
 *.pth
+wikitext-103-raw
