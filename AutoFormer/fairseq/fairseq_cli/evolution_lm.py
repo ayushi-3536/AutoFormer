@@ -125,8 +125,6 @@ class EvolutionSearcher(object):
         logger.debug(f"rank:{utils.get_rank()},cand:{cand},params:{info['params']}")
         eval_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
                               retrain_config=sampled_config)
-        # test_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
-        #                       retrain_config=sampled_config)
         logger.debug(f'eval stats:{eval_stats}')
         info['ppl'] = eval_stats['ppl']
         # info['test_acc'] = test_stats['acc1']
@@ -360,26 +358,23 @@ class EvolutionSearcher(object):
 
 
 def get_args_parser():
-    parser = argparse.ArgumentParser('DeiT training and evaluation script', add_help=False)
+    parser = argparse.ArgumentParser('search strategy for roberta', add_help=False)
     parser.add_argument('--batch-size', default=64, type=int)
 
     # evolution search parameters
-    parser.add_argument('--max-epochs', type=int, default=20)
+    parser.add_argument('--max-epochs', type=int, default=5)
     parser.add_argument('--select-num', type=int, default=10)
     parser.add_argument('--population-num', type=int, default=50)
     parser.add_argument('--m_prob', type=float, default=0.2)
     parser.add_argument('--s_prob', type=float, default=0.4)
     parser.add_argument('--crossover-num', type=int, default=25)
-    parser.add_argument('--epochs', type=int, default=30)
     parser.add_argument('--mutation-num', type=int, default=25)
     parser.add_argument('--param-limits', type=float, default=23)
     parser.add_argument('--min-param-limits', type=float, default=18)
 
     # config file
-    parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
-    parser.add_argument('--opt-doc', type=str,
-                        default='.AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json',
-                        help='Path to option JSON file for SwinIR.')
+    parser.add_argument('--config-dir',default='.AutoFormer/AutoFormer/fairseq/examples/roberta/config/pretraining',
+                        help='experiment configure file name', required=True, type=str)
 
     # custom parameters
     parser.add_argument('--platform', default='pai', type=str, choices=['itp', 'pai', 'aml'],
@@ -538,7 +533,7 @@ def get_args_parser():
 
 def main(args):
     update_config_from_file(args.cfg)
-    utils.init_distributed_mode(args)
+
 
     print(args)
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
