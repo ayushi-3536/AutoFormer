@@ -210,23 +210,17 @@ class EvolutionSearcher(object):
                 new_depth = random.choice(self.choices['depth'])
 
                 if new_depth > depth:
-                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in
-                                             range(new_depth - depth)]
-
+                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_depth - depth)]
                     logger.debug(f'embed dim one:{embed_dim[-1]}, embed dim :{embed_dim}')
                     embed_dim = embed_dim + [embed_dim[-1] for _ in range(new_depth - depth)]
                     logger.debug(f'embed dim after:{embed_dim}')
 
                     ff_embed_dim = ff_embed_dim + [ff_embed_dim[-1] for _ in range(new_depth - depth)]
                     logger.debug(f'embed dim after:{ff_embed_dim}')
-
                 else:
                     num_heads = num_heads[:depth]
                     embed_dim = embed_dim[:depth]
                     ff_embed_dim = ff_embed_dim[:depth]
-
-
-
 
             # num_heads
             for i in range(new_depth):
@@ -246,8 +240,7 @@ class EvolutionSearcher(object):
                     ff_embed_dim[i] = sampled_ff_embed_dim
                     logger.debug(f'embed dim while sampling:{embed_dim}, ffn embed dim:{ff_embed_dim}')
 
-
-            result_cand =  num_heads + embed_dim + ff_embed_dim + [new_depth]
+            result_cand = num_heads + embed_dim + ff_embed_dim + [new_depth]
 
             logger.debug(f'mutated cand:{result_cand}')
             return tuple(result_cand)
@@ -282,11 +275,11 @@ class EvolutionSearcher(object):
                 p2 = random.choice(self.keep_top_k[k])
             logger.debug(f"cand p1:{p1}")
             logger.debug(f"cand p2:{p2}")
-            # rstb_num_1, mlp_ratio_1, num_heads_1, embed_dim_1, stl_num_1 = decode_cand_tuple(p1)
-            # rstb_num_2, mlp_ratio_2, num_heads_2, embed_dim_2, stl_num_2 = decode_cand_tuple(p2)
             crossover_cfg = []
-            rstb_index = p1[0]
-            embed_dim_index = list(range(2 * rstb_index + 1, 3 * rstb_index + 1))
+            depth = p1[-1]
+
+            #embed dim and ffn_embed dim has to be same for every layer, crossover just once and propogate the same
+            embed_dim_index = list(range(0, 2 * depth))
             logger.debug(f'embed dim index:{embed_dim_index}')
             for idx, (i, j) in enumerate(zip(p1, p2)):
                 if idx not in embed_dim_index:
@@ -303,27 +296,6 @@ class EvolutionSearcher(object):
                         logger.debug(f'appending same embed dim to cfg list:{crossover_cfg}')
             logger.debug(f'final cfg list:{tuple(crossover_cfg)}')
             return tuple(crossover_cfg)
-
-            # rstb_num = random.choice([rstb_num_1,rstb_num_2])
-            # crossover_cfg.append(rstb_num)
-            # for i in range(rstb_num):
-            #    if len(mlp_ratio_1) < i+1:
-            #            mlp_ratio = mlp_ratio_2[i]
-            #    elif len(mlp_ratio_2) < i+1:
-            #            mlp_ratio = mlp_ratio_1[i]
-            #    else:
-            #            mlp_ratio = random.choice(mlp_ratio_1[i], mlp_ratio_2[i])
-            #    crossover_cfg.append(mlp_ratio)
-            #
-            #    if len(num_heads_1) < i+1:
-            #            num_head = num_heads_2[i]
-            #    elif len(num_heads_2) < i+1:
-            #            num_head = num_heads_1[i]
-            #    else:
-            #            num_head = random.choice(num_head_1[i], num_head_2[i])
-            #    crossover_cfg.append(num_head)
-
-            # return tuple(crossover_cfg)
 
         cand_iter = self.stack_random_cand(random_func)
         while len(res) < crossover_num and max_iters > 0:
@@ -357,18 +329,18 @@ class EvolutionSearcher(object):
                 self.memory[-1].append(cand)
 
             self.update_top_k(
-                self.candidates, k=self.select_num, key=lambda x: self.vis_dict[x]['psnr'])
+                self.candidates, k=self.select_num, key=lambda x: self.vis_dict[x]['ppl'])
             self.update_top_k(
-                self.candidates, k=50, key=lambda x: self.vis_dict[x]['psnr'])
+                self.candidates, k=50, key=lambda x: self.vis_dict[x]['ppl'])
 
             logger.debug(f'epoch = {self.epoch} : top {len(self.keep_top_k[50])} result')
             tmp_accuracy = []
             for i, cand in enumerate(self.keep_top_k[50]):
-                logger.debug(f'No.{i + 1} {cand} val psnr = {self.vis_dict[cand]["psnr"]},'
+                logger.debug(f'No.{i + 1} {cand} val ppl = {self.vis_dict[cand]["ppl"]},'
                              f' params = {self.vis_dict[cand]["params"]}')
-                tmp_accuracy.append(self.vis_dict[cand]['psnr'])
-                with open('swinir_search.json', 'a+')as f:
-                    json.dump({'epoch': self.epoch, 'rank': i + 1, 'psnr': self.vis_dict[cand]['psnr'],
+                tmp_accuracy.append(self.vis_dict[cand]['ppl'])
+                with open('roberta_search.json', 'a+')as f:
+                    json.dump({'epoch': self.epoch, 'rank': i + 1, 'ppl': self.vis_dict[cand]['ppl'],
                                'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
                     f.write("\n")
@@ -614,7 +586,6 @@ def main(args):
             checkpoint = torch.load(args.resume, map_location='cpu')
         logger.debug("resume from checkpoint: {args.resume}")
         model_without_ddp.load_state_dict(checkpoint['model'])
-
 
     # To Test
     # Todo: read from config file
