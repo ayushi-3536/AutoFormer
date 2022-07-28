@@ -7,7 +7,7 @@ import torch.backends.cudnn as cudnn
 from pathlib import Path
 from fairseq import models
 from omegaconf import OmegaConf
-from fairseq.modules.autoformer_wrapper.sampling import sample_config
+from fairseq_cli.search_validate import Search_Validate
 from AutoFormer.lib import utils
 import argparse
 import os
@@ -38,10 +38,11 @@ def decode_cand_tuple(cand_tuple):
 
 class EvolutionSearcher(object):
 
-    def __init__(self, args, device, model, model_without_ddp, choices, val_loader, output_dir):
+    def __init__(self, args, device, model, validator, choices, val_loader, output_dir):
         self.device = device
         self.model = model
-        self.model_without_ddp = model_without_ddp
+        self.model_without_ddp = model
+        self.validator = validator
         self.args = args
         self.max_epochs = args.max_epochs
         self.select_num = args.select_num
@@ -123,8 +124,9 @@ class EvolutionSearcher(object):
             return False
 
         logger.debug(f"rank:{utils.get_rank()},cand:{cand},params:{info['params']}")
-        eval_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
-                              retrain_config=sampled_config)
+        eval_stats = self.validator.evaluate(config=sampled_config)
+        # eval_stats = (self.val_loader, self.model, self.model.module, self.device, amp=self.args.amp, mode='retrain',
+        #               retrain_config=sampled_config)
         logger.debug(f'eval stats:{eval_stats}')
         info['ppl'] = eval_stats['ppl']
         # info['test_acc'] = test_stats['acc1']
@@ -553,24 +555,10 @@ def main(args):
 
     logger.debug(f"Creating LM model")
     logger.debug(cfg)
-    model_config = OmegaConf.create(
-        {'_name': 'roberta_large', 'max_positions': 512, 'dropout': 0.1, 'attention_dropout': 0.1})
-    dictionary = Dictionary()
 
-    # Vocabulary size for RoBERTa
-    # It changes the embedding weight and thus the num of params in the model
-    for i in range(50_000):
-        dictionary.add_symbol(i)
-    mlm_task = MaskedLMTask(MaskedLmConfig(), dictionary=dictionary)
 
-    model = models.build_model(model_config, mlm_task)
-
-    model.to(device)
-    model_without_ddp = model
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-        model_without_ddp = model.module
-
+    validator = Search_Validate(cfg)
+    model = validator.model
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.debug(f'number of params:{n_parameters}')
     if args.resume:
@@ -580,7 +568,6 @@ def main(args):
         else:
             checkpoint = torch.load(args.resume, map_location='cpu')
         logger.debug("resume from checkpoint: {args.resume}")
-        model_without_ddp.load_state_dict(checkpoint['model'])
 
     # To Test
     # Todo: read from config file
@@ -591,7 +578,7 @@ def main(args):
                }
 
     t = time.time()
-    searcher = EvolutionSearcher(args, device, model, model_without_ddp, choices, data_loader_valid,
+    searcher = EvolutionSearcher(args, device, model, validator, choices, data_loader_valid,
                                  args.output_dir)
 
     searcher.search()

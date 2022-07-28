@@ -77,7 +77,13 @@ class Search_Validate:
         self.criterion = self.task.build_criterion(self.saved_cfg.criterion)
         self.criterion.eval()
 
-    def evaluate(self):
+    def evaluate(self, config):
+
+        self.model.set_sample_config(sample_embed_dim=config['EMBED_DIM'],
+            sample_ffn_embed_dim=config['FFN_EMBED_DIM'],
+            sample_num_heads=config['NUM_HEADS'],
+            sample_depth=config['DEPTH'],
+        )
 
         for subset in self.cfg.dataset.valid_subset.split(","):
             try:
