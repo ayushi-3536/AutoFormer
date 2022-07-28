@@ -7,8 +7,8 @@ import torch.backends.cudnn as cudnn
 from pathlib import Path
 from fairseq import models
 from omegaconf import OmegaConf
+from fairseq.modules.autoformer_wrapper.sampling import sample_config
 from AutoFormer.lib import utils
-from torch.utils.data.distributed import DistributedSampler
 import argparse
 import os
 from fairseq.criterions.masked_lm import MaskedLmConfig
@@ -16,22 +16,24 @@ from fairseq.data.dictionary import Dictionary
 from fairseq.tasks.masked_lm import MaskedLMTask
 import yaml
 from loguru import logger
-from AutoFormer.utils import utils_option as option
-from torch.utils.data import DataLoader
 from AutoFormer.lib.config import cfg, update_config_from_file
 import json
 
 logger.add(sys.stdout, level='DEBUG')
 
+
 def decode_cand_tuple(cand_tuple):
     logger.debug(f'cand tuple:{cand_tuple}')
 
-    #Example: (256,256,256,256, 1024,1024,1024,1024,8,4,8,4, 4)
+    # Example: (256,256,256,256, 1024,1024,1024,1024,8,4,8,4, 4)
     depth = cand_tuple[-1]
-    return list(cand_tuple[0:depth]),\
-           list(cand_tuple[depth: 2 * depth]),\
-           list(cand_tuple[2*depth: 3 * depth]),\
+    return list(cand_tuple[0:depth]), \
+           list(cand_tuple[depth: 2 * depth]), \
+           list(cand_tuple[2 * depth: 3 * depth]), \
            cand_tuple[-1]
+
+
+# print (decode_cand_tuple(tuple((256,256,256,256, 1024,1024,1024,1024,8,4,8,4, 4))))
 
 
 class EvolutionSearcher(object):
@@ -96,17 +98,17 @@ class EvolutionSearcher(object):
         info = self.vis_dict[cand]
         if 'visited' in info:
             return False
-        rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
+        embed_dim, ff_embed_dim, num_heads, depth = decode_cand_tuple(cand)
 
-
-        logger.debug(f'rstb_num:{rstb_num}, mlp_ratio"{mlp_ratio}, numhead:{num_heads}, embed dim:{embed_dim}, stl_num:{stl_num}')
+        logger.debug(
+            f'embed_dim:{embed_dim}, ffn_embed_dim"{ff_embed_dim},'
+            f' num_heads:{num_heads}, depth:{depth}')
         sampled_config = {}
-        sampled_config['rstb_num'] = rstb_num
-        sampled_config['stl_num'] = stl_num
+        sampled_config['depth'] = depth
         sampled_config['num_heads'] = num_heads
         sampled_config['embed_dim'] = embed_dim
-        sampled_config['mlp_ratio'] = mlp_ratio
-        
+        sampled_config['ffn_embed_config'] = ff_embed_dim
+
         logger.debug(f'sampled_config:{sampled_config}')
 
         n_parameters = self.model_without_ddp.get_sampled_params_numel(sampled_config)
@@ -126,8 +128,8 @@ class EvolutionSearcher(object):
         # test_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
         #                       retrain_config=sampled_config)
         logger.debug(f'eval stats:{eval_stats}')
-        info['psnr'] = eval_stats['psnr']
-        #info['test_acc'] = test_stats['acc1']
+        info['ppl'] = eval_stats['ppl']
+        # info['test_acc'] = test_stats['acc1']
 
         info['visited'] = True
 
@@ -156,25 +158,27 @@ class EvolutionSearcher(object):
     def get_random_cand(self):
         '''
         Generate random configuration:
-        Example: 'stl_num': 2, 'embed_dim': [60, 60, 60, 60], 'num_heads': [5, 5, 5, 5], 'mlp_ratio': [1.5, 1.5, 2,1.0],
-        'rstb_num': 4
+        Example: 'embed_dim': [256,256,256,256], ffn_embed_dim: [1024,1024,1024,1024],'num_heads': [8,4,8,4], 'depth': 4
         #
         Returns:
             Tuple: Sampled configuration
         '''
 
         cand_tuple = list()
-        dimensions = ['mlp_ratio', 'num_heads']
+        dimensions = ['num_heads']
 
-        rstb_num = random.choice(self.choices['rstb_num'])
-        cand_tuple.append(rstb_num)
+        depth = random.choice(self.choices['depth'])
         for dimension in dimensions:
-            for i in range(rstb_num):
+            for i in range(depth):
                 cand_tuple.append(random.choice(self.choices[dimension]))
         embed_dim = random.choice(self.choices['embed_dim'])
-        for i in range(rstb_num):
+        for i in range(depth):
             cand_tuple.append(embed_dim)
-        cand_tuple.append(random.choice(self.choices['stl_num']))
+
+        ffn_embed_dim = random.choice(self.choices['ffn_embed_dim'])
+        for i in range(depth):
+            cand_tuple.append(ffn_embed_dim)
+        cand_tuple.append(depth)
         logger.debug(f'cand tuple:{cand_tuple}')
         return tuple(cand_tuple)
 
@@ -206,8 +210,10 @@ class EvolutionSearcher(object):
                 new_rstb_num = random.choice(self.choices['rstb_num'])
 
                 if new_rstb_num > rstb_num:
-                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in range(new_rstb_num - rstb_num)]
-                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_rstb_num - rstb_num)]
+                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in
+                                             range(new_rstb_num - rstb_num)]
+                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in
+                                             range(new_rstb_num - rstb_num)]
 
                     logger.debug(f'embed dim one:{embed_dim[-1]}, embed dim :{embed_dim}')
                     embed_dim = embed_dim + [embed_dim[-1] for _ in range(new_rstb_num - rstb_num)]
@@ -283,21 +289,21 @@ class EvolutionSearcher(object):
                 p2 = random.choice(self.keep_top_k[k])
             logger.debug(f"cand p1:{p1}")
             logger.debug(f"cand p2:{p2}")
-            #rstb_num_1, mlp_ratio_1, num_heads_1, embed_dim_1, stl_num_1 = decode_cand_tuple(p1)
-            #rstb_num_2, mlp_ratio_2, num_heads_2, embed_dim_2, stl_num_2 = decode_cand_tuple(p2)
+            # rstb_num_1, mlp_ratio_1, num_heads_1, embed_dim_1, stl_num_1 = decode_cand_tuple(p1)
+            # rstb_num_2, mlp_ratio_2, num_heads_2, embed_dim_2, stl_num_2 = decode_cand_tuple(p2)
             crossover_cfg = []
             rstb_index = p1[0]
-            embed_dim_index = list(range(2*rstb_index + 1,3 * rstb_index + 1))
+            embed_dim_index = list(range(2 * rstb_index + 1, 3 * rstb_index + 1))
             logger.debug(f'embed dim index:{embed_dim_index}')
             for idx, (i, j) in enumerate(zip(p1, p2)):
                 if idx not in embed_dim_index:
                     crossover_cfg.append(random.choice([i, j]))
                 else:
-                    logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx+1}')
+                    logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx + 1}')
                     if len(crossover_cfg) > idx:
                         logger.debug('index bigger than len of sampled cfg')
                         continue
-                    embed_dim = random.choice([i,j])
+                    embed_dim = random.choice([i, j])
                     logger.debug(f'sampled embed_dim:{embed_dim}')
                     for embed_per_block in range(len(embed_dim_index)):
                         crossover_cfg.append(embed_dim)
@@ -305,19 +311,17 @@ class EvolutionSearcher(object):
             logger.debug(f'final cfg list:{tuple(crossover_cfg)}')
             return tuple(crossover_cfg)
 
-
-                
-            #rstb_num = random.choice([rstb_num_1,rstb_num_2])
-            #crossover_cfg.append(rstb_num)
-            #for i in range(rstb_num):
+            # rstb_num = random.choice([rstb_num_1,rstb_num_2])
+            # crossover_cfg.append(rstb_num)
+            # for i in range(rstb_num):
             #    if len(mlp_ratio_1) < i+1:
             #            mlp_ratio = mlp_ratio_2[i]
             #    elif len(mlp_ratio_2) < i+1:
             #            mlp_ratio = mlp_ratio_1[i]
             #    else:
-            #            mlp_ratio = random.choice(mlp_ratio_1[i], mlp_ratio_2[i])  
+            #            mlp_ratio = random.choice(mlp_ratio_1[i], mlp_ratio_2[i])
             #    crossover_cfg.append(mlp_ratio)
-            #        
+            #
             #    if len(num_heads_1) < i+1:
             #            num_head = num_heads_2[i]
             #    elif len(num_heads_2) < i+1:
@@ -326,11 +330,7 @@ class EvolutionSearcher(object):
             #            num_head = random.choice(num_head_1[i], num_head_2[i])
             #    crossover_cfg.append(num_head)
 
-
-
-
-
-            #return tuple(crossover_cfg)
+            # return tuple(crossover_cfg)
 
         cand_iter = self.stack_random_cand(random_func)
         while len(res) < crossover_num and max_iters > 0:
@@ -371,11 +371,11 @@ class EvolutionSearcher(object):
             logger.debug(f'epoch = {self.epoch} : top {len(self.keep_top_k[50])} result')
             tmp_accuracy = []
             for i, cand in enumerate(self.keep_top_k[50]):
-                logger.debug(f'No.{i+1} {cand} val psnr = { self.vis_dict[cand]["psnr"]},'
+                logger.debug(f'No.{i + 1} {cand} val psnr = {self.vis_dict[cand]["psnr"]},'
                              f' params = {self.vis_dict[cand]["params"]}')
                 tmp_accuracy.append(self.vis_dict[cand]['psnr'])
                 with open('swinir_search.json', 'a+')as f:
-                    json.dump({'epoch': self.epoch, 'rank': i+1, 'psnr': self.vis_dict[cand]['psnr'],
+                    json.dump({'epoch': self.epoch, 'rank': i + 1, 'psnr': self.vis_dict[cand]['psnr'],
                                'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
                     f.write("\n")
@@ -412,7 +412,8 @@ def get_args_parser():
 
     # config file
     parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
-    parser.add_argument('--opt-doc', type=str, default='.AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json',
+    parser.add_argument('--opt-doc', type=str,
+                        default='.AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json',
                         help='Path to option JSON file for SwinIR.')
 
     # custom parameters
@@ -590,10 +591,10 @@ def main(args):
     with open(os.path.join(args.output_dir, "config.yaml"), 'w') as f:
         f.write(args_text)
 
-
     logger.debug(f"Creating LM model")
     logger.debug(cfg)
-    model_config = OmegaConf.create({'_name': 'roberta_large', 'max_positions': 512, 'dropout': 0.1, 'attention_dropout': 0.1})
+    model_config = OmegaConf.create(
+        {'_name': 'roberta_large', 'max_positions': 512, 'dropout': 0.1, 'attention_dropout': 0.1})
     dictionary = Dictionary()
 
     # Vocabulary size for RoBERTa
@@ -621,12 +622,14 @@ def main(args):
         logger.debug("resume from checkpoint: {args.resume}")
         model_without_ddp.load_state_dict(checkpoint['model'])
 
-    choices = {
-        'sample_embed_dim': [256, 384, 512],
-        'sample_ffn_embed_dim': [1024, 1536, 2048],
-        'sample_num_heads': [4, 8],
-        'sample_depth': [4, 5, 6]
-    }
+
+    # To Test
+    # Todo: read from config file
+    choices = {'sample_embed_dim': [256, 384, 512],
+               'sample_ffn_embed_dim': [1024, 1536, 2048],
+               'sample_num_heads': [4, 8],
+               'sample_depth': [4, 5, 6]
+               }
 
     t = time.time()
     searcher = EvolutionSearcher(args, device, model, model_without_ddp, choices, data_loader_valid,
