@@ -9,10 +9,11 @@ import os
 import sys
 from argparse import Namespace
 from itertools import chain
-
+import time
 import torch
 from omegaconf import DictConfig
 
+from fairseq_cli.evolution_lm import EvolutionSearcher
 from fairseq import checkpoint_utils, distributed_utils, options, utils
 from fairseq.dataclass.utils import convert_namespace_to_omegaconf
 from fairseq.logging import metrics, progress_bar
@@ -141,16 +142,34 @@ class Search_Validate:
 
 #Todo:see if needed to extract config
 
-# def cli_main():
-#     parser = options.get_validation_parser()
-#     args = options.parse_args_and_arch(parser)
-#
-#     # only override args that are explicitly given on the command line
-#     override_parser = options.get_validation_parser()
-#     override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
-#
-#     distributed_utils.call_main(
-#         convert_namespace_to_omegaconf(args), main, override_args=override_args
-#     )
+def cli_main(ss_args):
+    parser = options.get_validation_parser(ss_args)
+    args = options.parse_args_and_arch(parser)
+
+    # only override args that are explicitly given on the command line
+    override_parser = options.get_validation_parser()
+    override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
+
+    search_validate = Search_Validate(convert_namespace_to_omegaconf(args))
+    model = search_validate.model
+
+    n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    choices = {'sample_embed_dim': [256, 384, 512],
+               'sample_ffn_embed_dim': [1024, 1536, 2048],
+               'sample_num_heads': [4, 8],
+               'sample_depth': [4, 5, 6]
+               }
+
+    t = time.time()
+    device = torch.device(args.device)
+    searcher = EvolutionSearcher(args, device, model, search_validate, choices,
+                                 args.output_dir)
+
+    searcher.search()
+
+    logger.debug('total searching time = {:.2f} hours'.format(
+        (time.time() - t) / 3600))
+
+
 
 

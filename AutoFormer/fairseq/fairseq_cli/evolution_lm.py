@@ -534,9 +534,11 @@ def get_args_parser():
 
 
 def main(args):
-    update_config_from_file(args.cfg)
 
-
+    parser = argparse.ArgumentParser('AutoFormer evolution search', parents=[get_args_parser()])
+    args = parser.parse_args()
+    if args.output_dir:
+        Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     print(args)
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
 
@@ -550,24 +552,24 @@ def main(args):
     cudnn.benchmark = True
 
     # save config for later experiments_configs
-    with open(os.path.join(args.output_dir, "config.yaml"), 'w') as f:
-        f.write(args_text)
-
-    logger.debug(f"Creating LM model")
-    logger.debug(cfg)
-
-
-    validator = Search_Validate(cfg)
-    model = validator.model
-    n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    logger.debug(f'number of params:{n_parameters}')
-    if args.resume:
-        if args.resume.startswith('https'):
-            checkpoint = torch.hub.load_state_dict_from_url(
-                args.resume, map_location='cpu', check_hash=True)
-        else:
-            checkpoint = torch.load(args.resume, map_location='cpu')
-        logger.debug("resume from checkpoint: {args.resume}")
+    # with open(os.path.join(args.output_dir, "config.yaml"), 'w') as f:
+    #     f.write(args_text)
+    #
+    # logger.debug(f"Creating LM model")
+    # logger.debug(cfg)
+    #
+    #
+    # validator = Search_Validate(cfg)
+    # model = validator.model
+    # n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # logger.debug(f'number of params:{n_parameters}')
+    # if args.resume:
+    #     if args.resume.startswith('https'):
+    #         checkpoint = torch.hub.load_state_dict_from_url(
+    #             args.resume, map_location='cpu', check_hash=True)
+    #     else:
+    #         checkpoint = torch.load(args.resume, map_location='cpu')
+    #     logger.debug("resume from checkpoint: {args.resume}")
 
     # To Test
     # Todo: read from config file
