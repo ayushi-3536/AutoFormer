@@ -178,7 +178,7 @@ def cli_main():
                               choices=choices,
                               output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch')
 
-    searcher.search()
+    #searcher.search()
 
     logger.debug('total searching time = {:.2f} hours'.format(
         (time.time() - t) / 3600))

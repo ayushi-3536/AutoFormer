@@ -23,7 +23,7 @@ logger.add(sys.stdout, level='DEBUG')
 
 
 def decode_cand_tuple(cand_tuple):
-    logger.debug(f'cand tuple:{cand_tuple}')
+    #logger.debug(f'cand tuple:{cand_tuple}')
 
     # Example: (256,256,256,256, 1024,1024,1024,1024,8,4,8,4, 4)
     depth = cand_tuple[-1]
@@ -207,12 +207,15 @@ class EvolutionSearcher(object):
         def random_func():
             cand = list(random.choice(self.keep_top_k[k]))
             num_heads, embed_dim, ff_embed_dim, depth= decode_cand_tuple(cand)
+            print('candidate to be muattaed',cand)
+            print('head',num_heads,'ed',embed_dim,'ffed',ff_embed_dim,'depth:',depth)
             random_s = random.random()
 
             # depth
             if random_s < s_prob:
+                print('sampling depth')
                 new_depth = random.choice(self.choices['depth'])
-
+                print('new depth',new_depth)
                 if new_depth > depth:
                     num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_depth - depth)]
                     logger.debug(f'embed dim one:{embed_dim[-1]}, embed dim :{embed_dim}')
@@ -220,40 +223,54 @@ class EvolutionSearcher(object):
                     logger.debug(f'embed dim after:{embed_dim}')
 
                     ff_embed_dim = ff_embed_dim + [ff_embed_dim[-1] for _ in range(new_depth - depth)]
-                    logger.debug(f'embed dim after:{ff_embed_dim}')
+                    logger.debug(f'ff embed dim after:{ff_embed_dim}')
                 else:
-                    num_heads = num_heads[:depth]
-                    embed_dim = embed_dim[:depth]
-                    ff_embed_dim = ff_embed_dim[:depth]
+                    num_heads = num_heads[:new_depth]
+                    embed_dim = embed_dim[:new_depth]
+                    ff_embed_dim = ff_embed_dim[:new_depth]
+                    print('if depth> new depth')
+                    print('heads',num_heads,'ed','ffed',ff_embed_dim)
                 depth=new_depth
+
 
             # num_heads
             for i in range(depth):
                 random_s = random.random()
                 if random_s < m_prob:
+                    print('mutating heads')
                     num_heads[i] = random.choice(self.choices['num_heads'])
 
             # embed_dim
             random_s = random.random()
             if random_s < s_prob:
-                logger.debug(f'sampled embed dim:{embed_dim}, ff_embed_dim:{ff_embed_dim}')
+                logger.debug(f'mutating embed dim:{embed_dim}')
                 sampled_embed_dim = random.choice(self.choices['embed_dim'])
-                sampled_ff_embed_dim = random.choice(self.choices['ffn_embed_dim'])
-                logger.debug(f'sampled config dim:{sampled_embed_dim}, sampled_ff_embed_dim:{sampled_ff_embed_dim}')
+                #sampled_ff_embed_dim = random.choice(self.choices['ffn_embed_dim'])
+                logger.debug(f'sampled config dim:{sampled_embed_dim}')
                 for i in range(depth):
                     embed_dim[i] = sampled_embed_dim
+                    #ff_embed_dim[i] = sampled_ff_embed_dim
+                    logger.debug(f'embed dim while sampling:{embed_dim}')
+            random_s = random.random()
+            if random_s < s_prob:
+                logger.debug(f'mutating ff_embed_dim:{ff_embed_dim}')
+                #sampled_embed_dim = random.choice(self.choices['embed_dim'])
+                sampled_ff_embed_dim = random.choice(self.choices['ffn_embed_dim'])
+                logger.debug(f'sampled_ff_embed_dim:{sampled_ff_embed_dim}')
+                for i in range(depth):
+                    #embed_dim[i] = sampled_embed_dim
                     ff_embed_dim[i] = sampled_ff_embed_dim
-                    logger.debug(f'embed dim while sampling:{embed_dim}, ffn embed dim:{ff_embed_dim}')
-
+                    logger.debug(f'ffn embed dim:{ff_embed_dim}')
             result_cand = num_heads + embed_dim + ff_embed_dim + [depth]
 
             logger.debug(f'mutated cand:{result_cand}')
             return tuple(result_cand)
-
+        print('generating mutation candidates')
         cand_iter = self.stack_random_cand(random_func)
         while len(res) < mutation_num and max_iters > 0:
             max_iters -= 1
             cand = next(cand_iter)
+
             if not self.is_legal(cand):
                 continue
             res.append(cand)
