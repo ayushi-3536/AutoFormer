@@ -115,6 +115,7 @@ class EvolutionSearcher(object):
                                     sample_embed_dim=embed_dim,
                                     sample_ffn_embed_dim=ff_embed_dim,
                                     sample_depth=depth)
+
         n_parameters = self.model.get_sampled_params_numel()
         info['params'] = n_parameters / 10. ** 6
 
