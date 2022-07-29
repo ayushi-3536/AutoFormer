@@ -41,7 +41,6 @@ class EvolutionSearcher(object):
     def __init__(self, args, model, validator, choices, output_dir):
         #self.device = device
         self.model = model
-        self.model_without_ddp = model
         self.validator = validator
         self.args = args
         self.max_epochs = args.max_epochs
@@ -108,11 +107,12 @@ class EvolutionSearcher(object):
         sampled_config['depth'] = depth
         sampled_config['num_heads'] = num_heads
         sampled_config['embed_dim'] = embed_dim
-        sampled_config['ffn_embed_config'] = ff_embed_dim
+        sampled_config['ffn_embed_dim'] = ff_embed_dim
 
         logger.debug(f'sampled_config:{sampled_config}')
 
-        n_parameters = self.model_without_ddp.get_sampled_params_numel(sampled_config)
+        self.model.set_sample_config(num_heads,embed_dim,ff_embed_dim,depth)
+        n_parameters = self.model.get_sampled_params_numel()
         info['params'] = n_parameters / 10. ** 6
 
         if info['params'] > self.parameters_limits:

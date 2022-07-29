@@ -82,10 +82,10 @@ class Search_Validate:
 
     def evaluate(self, config):
 
-        self.model.set_sample_config(sample_embed_dim=config['EMBED_DIM'],
-            sample_ffn_embed_dim=config['FFN_EMBED_DIM'],
-            sample_num_heads=config['NUM_HEADS'],
-            sample_depth=config['DEPTH'],
+        self.model.set_sample_config(sample_embed_dim=config['embed_dim'],
+            sample_ffn_embed_dim=config['ffn_embed_dim'],
+            sample_num_heads=config['num_heads'],
+            sample_depth=config['depth'],
         )
 
         for subset in self.cfg.dataset.valid_subset.split(","):
