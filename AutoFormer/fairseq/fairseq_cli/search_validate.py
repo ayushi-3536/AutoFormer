@@ -81,12 +81,14 @@ class Search_Validate:
         self.criterion.eval()
 
     def evaluate(self, config):
-
+        print("current device",torch.cuda.current_device())
+        self.model.to(torch.cuda.current_device()) 
         self.model.set_sample_config(sample_embed_dim=config['embed_dim'],
             sample_ffn_embed_dim=config['ffn_embed_dim'],
             sample_num_heads=config['num_heads'],
             sample_depth=config['depth'],
         )
+        #self.model.to(torch.cuda.current_device())
         print("Done setting model with subnet")
 
         for subset in self.cfg.dataset.valid_subset.split(","):

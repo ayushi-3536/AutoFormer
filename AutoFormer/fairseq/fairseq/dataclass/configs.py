@@ -1067,7 +1067,7 @@ class EvalLMConfig(FairseqDataclass):
 @dataclass
 class AutoFormerSearchConfig(FairseqDataclass):
     max_epochs: int = field(default=5)
-    select_num: int = field(default=1)
+    select_num: int = field(default=2)
     population_num: int = field(default=2)
     m_prob: float = field(default=0.2)
     s_prob: float = field(default=0.4)

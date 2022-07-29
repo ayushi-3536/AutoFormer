@@ -265,6 +265,7 @@ class EvolutionSearcher(object):
     def get_crossover(self, k, crossover_num):
         assert k in self.keep_top_k
         logger.debug('crossover ......')
+        print("crossover")
         res = []
         iter = 0
         max_iters = 10 * crossover_num
@@ -284,12 +285,14 @@ class EvolutionSearcher(object):
             depth = p1[-1]
 
             #embed dim and ffn_embed dim has to be same for every layer, crossover just once and propogate the same
-            embed_dim_index = list(range(0, 2 * depth))
+            embed_dim_index = list(range(depth, 2*depth))
+            ffn_embed_dim_idx = list(range(2*depth, 3 * depth))
+            print("embedding dim index",embed_dim_index)
             logger.debug(f'embed dim index:{embed_dim_index}')
             for idx, (i, j) in enumerate(zip(p1, p2)):
-                if idx not in embed_dim_index:
+                if idx not in embed_dim_index and idx not in ffn_embed_dim_idx:
                     crossover_cfg.append(random.choice([i, j]))
-                else:
+                elif idx in embed_dim_index:
                     logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx + 1}')
                     if len(crossover_cfg) > idx:
                         logger.debug('index bigger than len of sampled cfg')
@@ -299,6 +302,16 @@ class EvolutionSearcher(object):
                     for embed_per_block in range(len(embed_dim_index)):
                         crossover_cfg.append(embed_dim)
                         logger.debug(f'appending same embed dim to cfg list:{crossover_cfg}')
+                elif idx in ffn_embed_dim_idx:
+                    logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx + 1}')
+                    if len(crossover_cfg) > idx:
+                        logger.debug('index bigger than len of sampled cfg')
+                        continue
+                    ffn_embed_dim = random.choice([i,j])
+                    logger.debug(f'sampled embed_dim:{ffn_embed_dim}')
+                    for embed_per_block in range(len(ffn_embed_dim_idx)):
+                        crossover_cfg.append(ffn_embed_dim)
+                        logger.debug(f'appending same ffn embed dim to cfg list:{crossover_cfg}')
             logger.debug(f'final cfg list:{tuple(crossover_cfg)}')
             return tuple(crossover_cfg)
 
