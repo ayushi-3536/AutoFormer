@@ -38,8 +38,8 @@ def decode_cand_tuple(cand_tuple):
 
 class EvolutionSearcher(object):
 
-    def __init__(self, args, device, model, validator, choices, val_loader, output_dir):
-        self.device = device
+    def __init__(self, args, model, validator, choices, output_dir):
+        #self.device = device
         self.model = model
         self.model_without_ddp = model
         self.validator = validator
@@ -52,7 +52,7 @@ class EvolutionSearcher(object):
         self.mutation_num = args.mutation_num
         self.parameters_limits = args.param_limits
         self.min_parameters_limits = args.min_param_limits
-        self.val_loader = val_loader
+        #self.val_loader = val_loader
         self.output_dir = output_dir
         self.s_prob = args.s_prob
         self.memory = []
@@ -534,19 +534,21 @@ def get_args_parser():
     return parser
 
 
-def main(model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
-    logger.add(sys.stdout, level='DEBUG')
-    parser = argparse.ArgumentParser('AutoFormer evolution search', parents=[get_args_parser()])
-    args = parser.parse_args()
-    if output_dir is not None:
-        Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    print(args)
 
-    seed = args.seed #+ utils.get_rank()
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    random.seed(args.seed)
-    cudnn.benchmark = True
+def main(args,model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
+
+    # parser = argparse.ArgumentParser('AutoFormer evolution search', parents=[get_args_parser()])
+    # args = parser.parse_args()
+    # if output_dir is not None:
+    #     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    # print(args)
+
+    # seed = args.seed #+ utils.get_rank()
+    # torch.manual_seed(seed)
+    # np.random.seed(seed)
+    # random.seed(args.seed)
+    # cudnn.benchmark = True
+
 
     # save config for later experiments_configs
     # with open(os.path.join(args.output_dir, "config.yaml"), 'w') as f:

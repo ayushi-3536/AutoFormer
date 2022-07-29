@@ -145,7 +145,7 @@ class Search_Validate:
 #Todo:see if needed to extract config
 
 def cli_main():
-    parser = options.get_validation_parser()
+    parser = options.get_search_validation_parser()
     args = options.parse_args_and_arch(parser)
     print("before parsing",args)
     # only override args that are explicitly given on the command line
@@ -164,8 +164,10 @@ def cli_main():
                }
 
     t = time.time()
+
     print('start searching')    
-    searcher = evolution_init(model=model,
+    searcher = evolution_init(args,
+                              model=model,
                               search_validate=search_validate,
                               choices=choices,
                               output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch')
