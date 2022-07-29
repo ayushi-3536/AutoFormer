@@ -13,7 +13,7 @@ import time
 import torch
 from omegaconf import DictConfig
 
-from fairseq_cli.evolution_lm import EvolutionSearcher
+from fairseq_cli.evolution_lm import EvolutionSearcher, main as evolution_init
 from fairseq import checkpoint_utils, distributed_utils, options, utils
 from fairseq.dataclass.utils import convert_namespace_to_omegaconf
 from fairseq.logging import metrics, progress_bar
@@ -151,6 +151,7 @@ def cli_main():
     override_parser = options.get_validation_parser()
     override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
     print("after override",override_args)
+
     search_validate = Search_Validate(convert_namespace_to_omegaconf(override_args))
     model = search_validate.model
 
@@ -163,8 +164,10 @@ def cli_main():
 
     t = time.time()
     
-    searcher = EvolutionSearcher(args, model, search_validate, choices,
-                                 '/work/dlclarge1/sharmaa-dltrans/robertasearch')
+    searcher = evolution_init(model=model,
+                              search_validate=search_validate,
+                              choices=choices,
+                              output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch')
 
     searcher.search()
 

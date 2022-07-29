@@ -533,18 +533,14 @@ def get_args_parser():
     return parser
 
 
-def main(args):
+def main(model, search_validate, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
 
     parser = argparse.ArgumentParser('AutoFormer evolution search', parents=[get_args_parser()])
     args = parser.parse_args()
-    if args.output_dir:
+    if output_dir is not None:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     print(args)
-    args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
 
-    device = torch.device(args.device)
-
-    # fix the seed for reproducibility
     seed = args.seed #+ utils.get_rank()
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -580,8 +576,7 @@ def main(args):
                }
 
     t = time.time()
-    searcher = EvolutionSearcher(args, device, model, validator, choices, data_loader_valid,
-                                 args.output_dir)
+    searcher = EvolutionSearcher(args, model, search_validate, choices, output_dir)
 
     searcher.search()
 
@@ -589,9 +584,3 @@ def main(args):
         (time.time() - t) / 3600))
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser('AutoFormer evolution search', parents=[get_args_parser()])
-    args = parser.parse_args()
-    if args.output_dir:
-        Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    main(args)
