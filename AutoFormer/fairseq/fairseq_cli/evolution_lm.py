@@ -533,7 +533,7 @@ def get_args_parser():
     return parser
 
 
-def main(model, search_validate, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
+def main(model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
 
     parser = argparse.ArgumentParser('AutoFormer evolution search', parents=[get_args_parser()])
     args = parser.parse_args()
@@ -568,12 +568,7 @@ def main(model, search_validate, output_dir='/work/dlclarge1/sharmaa-dltrans/rob
     #     logger.debug("resume from checkpoint: {args.resume}")
 
     # To Test
-    # Todo: read from config file
-    choices = {'sample_embed_dim': [256, 384, 512],
-               'sample_ffn_embed_dim': [1024, 1536, 2048],
-               'sample_num_heads': [4, 8],
-               'sample_depth': [4, 5, 6]
-               }
+
 
     t = time.time()
     searcher = EvolutionSearcher(args, model, search_validate, choices, output_dir)
