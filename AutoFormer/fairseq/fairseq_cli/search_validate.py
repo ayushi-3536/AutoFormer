@@ -25,7 +25,7 @@ logging.basicConfig(
     level=os.environ.get("LOGLEVEL", "INFO").upper(),
     stream=sys.stdout,
 )
-logger = logging.getLogger("fairseq_cli.validate")
+logger = logging.getLogger("fairseq_cli.search_validate")
 
 class Search_Validate:
 
@@ -70,10 +70,11 @@ class Search_Validate:
             suffix=cfg.checkpoint.checkpoint_suffix,
         )
         self.model = models[0]
-
-
+        print("model",self.model)
+        print("save config",self.saved_cfg)
+        print("self.task",self.task)
         # Print args
-        logger.info(self.saved_cfg)
+        #logger.info(self.saved_cfg)
 
         # Build criterion
         self.criterion = self.task.build_criterion(self.saved_cfg.criterion)
@@ -163,7 +164,7 @@ def cli_main():
                }
 
     t = time.time()
-    
+    print('start searching')    
     searcher = evolution_init(model=model,
                               search_validate=search_validate,
                               choices=choices,

@@ -24,7 +24,7 @@ logging.basicConfig(
     level=os.environ.get("LOGLEVEL", "INFO").upper(),
     stream=sys.stdout,
 )
-logger = logging.getLogger("fairseq_cli.validate")
+logger = logging.getLogger("fairseq_cli.search_validate")
 
 
 def main(cfg: DictConfig, override_args=None):
@@ -66,7 +66,7 @@ def main(cfg: DictConfig, override_args=None):
         suffix=cfg.checkpoint.checkpoint_suffix,
     )
     model = models[0]
-
+    print('generated model',model)
     # Move models to GPU
     for model in models:
         model.eval()

@@ -310,6 +310,7 @@ class EvolutionSearcher(object):
         return res
 
     def search(self):
+        print("inside evolutionary search")
         logger.debug(f'population_num = {self.population_num}'
                      f' select_num = {self.select_num}'
                      f' mutation_num = {self.mutation_num}'
@@ -375,8 +376,8 @@ def get_args_parser():
     parser.add_argument('--min-param-limits', type=float, default=18)
 
     # config file
-    parser.add_argument('--config-dir',default='.AutoFormer/AutoFormer/fairseq/examples/roberta/config/pretraining',
-                        help='experiment configure file name', required=True, type=str)
+    #parser.add_argument('--config-dir',default='.AutoFormer/AutoFormer/fairseq/examples/roberta/config/pretraining',
+    #                    help='experiment configure file name', required=True, type=str)
 
     # custom parameters
     parser.add_argument('--platform', default='pai', type=str, choices=['itp', 'pai', 'aml'],
@@ -534,7 +535,7 @@ def get_args_parser():
 
 
 def main(model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
-
+    logger.add(sys.stdout, level='DEBUG')
     parser = argparse.ArgumentParser('AutoFormer evolution search', parents=[get_args_parser()])
     args = parser.parse_args()
     if output_dir is not None:
@@ -571,6 +572,7 @@ def main(model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dl
 
 
     t = time.time()
+    print("call evolutionary search")
     searcher = EvolutionSearcher(args, model, search_validate, choices, output_dir)
 
     searcher.search()
