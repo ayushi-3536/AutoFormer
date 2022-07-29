@@ -1010,7 +1010,7 @@ class GenerationConfig(FairseqDataclass):
 @dataclass
 class CommonEvalConfig(FairseqDataclass):
     path: Optional[str] = field(
-        default=None,
+        default='/work/dlclarge1/sharmaa-dltrans/AutoFormer/AutoFormer/fairseq/multirun/2022-07-25/13-22-16/0/checkpoints/checkpoint_best.pt',
         metadata={"help": "path(s) to model file(s), colon separated"},
     )
     post_process: Optional[str] = field(

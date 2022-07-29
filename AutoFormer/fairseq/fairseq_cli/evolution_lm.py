@@ -7,8 +7,8 @@ import torch.backends.cudnn as cudnn
 from pathlib import Path
 from fairseq import models
 from omegaconf import OmegaConf
-from fairseq_cli.search_validate import Search_Validate
-from AutoFormer.lib import utils
+#from fairseq_cli.search_validate import Search_Validate
+#from AutoFormer.lib import utils
 import argparse
 import os
 from fairseq.criterions.masked_lm import MaskedLmConfig
@@ -16,7 +16,7 @@ from fairseq.data.dictionary import Dictionary
 from fairseq.tasks.masked_lm import MaskedLMTask
 import yaml
 from loguru import logger
-from AutoFormer.lib.config import cfg, update_config_from_file
+#from AutoFormer.lib.config import cfg, update_config_from_file
 import json
 
 logger.add(sys.stdout, level='DEBUG')
@@ -123,7 +123,7 @@ class EvolutionSearcher(object):
             logger.debug('under minimum parameters limit')
             return False
 
-        logger.debug(f"rank:{utils.get_rank()},cand:{cand},params:{info['params']}")
+        logger.debug(f"cand:{cand},params:{info['params']}")
         eval_stats = self.validator.evaluate(config=sampled_config)
         # eval_stats = (self.val_loader, self.model, self.model.module, self.device, amp=self.args.amp, mode='retrain',
         #               retrain_config=sampled_config)
@@ -545,7 +545,7 @@ def main(args):
     device = torch.device(args.device)
 
     # fix the seed for reproducibility
-    seed = args.seed + utils.get_rank()
+    seed = args.seed #+ utils.get_rank()
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(args.seed)

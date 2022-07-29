@@ -32,10 +32,11 @@ class Search_Validate:
     def __init__(self, cfg: DictConfig, override_args=None):
         if isinstance(cfg, Namespace):
             cfg = convert_namespace_to_omegaconf(cfg)
-
-        self.cfg=cfg
         utils.import_user_module(cfg.common)
-
+        self.cfg=cfg
+        print("cfg in main",self.cfg)
+        utils.import_user_module(cfg.common)
+        print("common eval in cfg",cfg.common_eval)
         reset_logging()
 
         assert (
@@ -45,7 +46,7 @@ class Search_Validate:
         use_fp16 = cfg.common.fp16
         self.use_cuda = torch.cuda.is_available() and not cfg.common.cpu
 
-        if use_cuda:
+        if self.use_cuda:
             torch.cuda.set_device(cfg.distributed_training.device_id)
 
         if cfg.distributed_training.distributed_world_size > 1:
@@ -142,15 +143,15 @@ class Search_Validate:
 
 #Todo:see if needed to extract config
 
-def cli_main(ss_args):
-    parser = options.get_validation_parser(ss_args)
+def cli_main():
+    parser = options.get_validation_parser()
     args = options.parse_args_and_arch(parser)
-
+    print("before parsing",args)
     # only override args that are explicitly given on the command line
     override_parser = options.get_validation_parser()
     override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
-
-    search_validate = Search_Validate(convert_namespace_to_omegaconf(args))
+    print("after override",override_args)
+    search_validate = Search_Validate(convert_namespace_to_omegaconf(override_args))
     model = search_validate.model
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -161,9 +162,9 @@ def cli_main(ss_args):
                }
 
     t = time.time()
-    device = torch.device(args.device)
-    searcher = EvolutionSearcher(args, device, model, search_validate, choices,
-                                 args.output_dir)
+    
+    searcher = EvolutionSearcher(args, model, search_validate, choices,
+                                 '/work/dlclarge1/sharmaa-dltrans/robertasearch')
 
     searcher.search()
 

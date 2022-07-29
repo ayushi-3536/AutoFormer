@@ -136,7 +136,7 @@ def parse_args_and_arch(
     # parse a second time after adding the *-specific arguments.
     # If input_args is given, we will parse those args instead of sys.argv.
     args, _ = parser.parse_known_args(input_args)
-
+    print("args",args)
     # Add model-specific args to parser.
     if hasattr(args, "arch"):
         model_specific_group = parser.add_argument_group(
