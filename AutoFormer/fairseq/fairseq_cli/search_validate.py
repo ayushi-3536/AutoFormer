@@ -87,8 +87,10 @@ class Search_Validate:
             sample_num_heads=config['num_heads'],
             sample_depth=config['depth'],
         )
+        print("Done setting model with subnet")
 
         for subset in self.cfg.dataset.valid_subset.split(","):
+            print('subset',subset)
             try:
                 self.task.load_dataset(subset, combine=False, epoch=1, task_cfg=self.saved_cfg.task)
                 dataset = self.task.dataset(subset)
@@ -140,6 +142,8 @@ class Search_Validate:
                 log_output = agg.get_smoothed_values()
 
             progress.print(log_output, tag=subset, step=i)
+            print('log output',log_output)
+            return log_output
 
 
 #Todo:see if needed to extract config

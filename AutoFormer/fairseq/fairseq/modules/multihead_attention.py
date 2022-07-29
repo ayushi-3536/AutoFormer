@@ -486,6 +486,8 @@ class MultiheadAttention(nn.Module):
         self.num_heads = sample_num_heads
         self.kdim = sample_embed_dim if sample_k_dim is None else sample_k_dim
         self.vdim = sample_embed_dim if sample_v_dim is None else sample_v_dim
+        print('sample ed',sample_embed_dim)
+        print('heads',sample_num_heads)
         self.scaling = (sample_embed_dim // sample_num_heads) ** -0.5
 
         self.dropout_module.set_sample_config(sample_p=self.super_dropout * sample_embed_dim / self.super_embed_dim)

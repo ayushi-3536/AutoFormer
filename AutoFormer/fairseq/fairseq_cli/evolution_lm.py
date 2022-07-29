@@ -84,7 +84,7 @@ class EvolutionSearcher(object):
         self.memory = info['memory']
         self.candidates = info['candidates']
         self.vis_dict = info['vis_dict']
-        logger.debug(f'vis dict:{self.vis_dict}')
+        #logger.debug(f'vis dict:{self.vis_dict}')
         self.keep_top_k = info['keep_top_k']
         self.epoch = info['epoch']
 
@@ -98,7 +98,7 @@ class EvolutionSearcher(object):
         info = self.vis_dict[cand]
         if 'visited' in info:
             return False
-        embed_dim, ff_embed_dim, num_heads, depth = decode_cand_tuple(cand)
+        num_heads, embed_dim, ff_embed_dim, depth = decode_cand_tuple(cand)
 
         logger.debug(
             f'embed_dim:{embed_dim}, ffn_embed_dim"{ff_embed_dim},'
@@ -111,7 +111,10 @@ class EvolutionSearcher(object):
 
         logger.debug(f'sampled_config:{sampled_config}')
 
-        self.model.set_sample_config(num_heads,embed_dim,ff_embed_dim,depth)
+        self.model.set_sample_config(sample_num_heads=num_heads,
+                                    sample_embed_dim=embed_dim,
+                                    sample_ffn_embed_dim=ff_embed_dim,
+                                    sample_depth=depth)
         n_parameters = self.model.get_sampled_params_numel()
         info['params'] = n_parameters / 10. ** 6
 
@@ -146,8 +149,8 @@ class EvolutionSearcher(object):
     def stack_random_cand(self, random_func, *, batchsize=10):
         while True:
             cands = [random_func() for _ in range(batchsize)]
-            logger.debug(f'random cand generated from mutation:{cands}')
-            logger.debug(f'vis dict:{self.vis_dict}')
+            #logger.debug(f'random cand generated from mutation:{cands}')
+            #logger.debug(f'vis dict:{self.vis_dict}')
             for cand in cands:
                 if cand not in self.vis_dict:
                     self.vis_dict[cand] = {}
