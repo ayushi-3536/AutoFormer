@@ -21,6 +21,7 @@ from fairseq.dataclass.configs import (
     InteractiveConfig,
     OptimizationConfig,
     EMAConfig,
+    AutoFormerSearchConfig
 )
 from fairseq.dataclass.utils import gen_parser_from_dataclass
 
@@ -82,6 +83,15 @@ def get_validation_parser(default_task=None):
     add_distributed_training_args(parser, default_world_size=1)
     group = parser.add_argument_group("Evaluation")
     gen_parser_from_dataclass(group, CommonEvalConfig())
+    return parser
+
+def get_search_validation_parser(default_task=None):
+    parser = get_parser("Validation", default_task)
+    add_dataset_args(parser, train=True)
+    add_distributed_training_args(parser, default_world_size=1)
+    group = parser.add_argument_group("Evaluation")
+    gen_parser_from_dataclass(group, CommonEvalConfig())
+    add_search_strategy_args(parser)
     return parser
 
 
@@ -350,6 +360,13 @@ def add_eval_lm_args(parser):
     group = parser.add_argument_group("LM Evaluation")
     add_common_eval_args(group)
     gen_parser_from_dataclass(group, EvalLMConfig())
+
+
+def add_search_strategy_args(parser):
+    group = parser.add_argument_group("AutoFormer evolution search")
+    add_common_eval_args(group)
+    gen_parser_from_dataclass(group, AutoFormerSearchConfig())
+
 
 
 def add_generation_args(parser):
