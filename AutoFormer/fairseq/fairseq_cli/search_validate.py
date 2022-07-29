@@ -157,10 +157,10 @@ def cli_main():
     model = search_validate.model
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    choices = {'sample_embed_dim': [256, 384, 512],
-               'sample_ffn_embed_dim': [1024, 1536, 2048],
-               'sample_num_heads': [4, 8],
-               'sample_depth': [4, 5, 6]
+    choices = {'embed_dim': [256, 384, 512],
+               'ffn_embed_dim': [1024, 1536, 2048],
+               'num_heads': [4, 8],
+               'depth': [4, 5, 6]
                }
 
     t = time.time()
