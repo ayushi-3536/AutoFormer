@@ -115,6 +115,7 @@ class EvolutionSearcher(object):
                                     sample_embed_dim=embed_dim,
                                     sample_ffn_embed_dim=ff_embed_dim,
                                     sample_depth=depth)
+
         n_parameters = self.model.get_sampled_params_numel()
         info['params'] = n_parameters / 10. ** 6
 
@@ -224,9 +225,10 @@ class EvolutionSearcher(object):
                     num_heads = num_heads[:depth]
                     embed_dim = embed_dim[:depth]
                     ff_embed_dim = ff_embed_dim[:depth]
+                depth=new_depth
 
             # num_heads
-            for i in range(new_depth):
+            for i in range(depth):
                 random_s = random.random()
                 if random_s < m_prob:
                     num_heads[i] = random.choice(self.choices['num_heads'])
@@ -243,7 +245,7 @@ class EvolutionSearcher(object):
                     ff_embed_dim[i] = sampled_ff_embed_dim
                     logger.debug(f'embed dim while sampling:{embed_dim}, ffn embed dim:{ff_embed_dim}')
 
-            result_cand = num_heads + embed_dim + ff_embed_dim + [new_depth]
+            result_cand = num_heads + embed_dim + ff_embed_dim + [depth]
 
             logger.debug(f'mutated cand:{result_cand}')
             return tuple(result_cand)
