@@ -115,6 +115,7 @@ class Search_Validate:
                 num_workers=self.cfg.dataset.num_workers,
                 data_buffer_size=self.cfg.dataset.data_buffer_size,
             ).next_epoch_itr(shuffle=False)
+            print("itr",itr)
             progress = progress_bar.progress_bar(
                 itr,
                 log_format=self.cfg.common.log_format,
@@ -124,11 +125,14 @@ class Search_Validate:
             )
 
             log_outputs = []
+            print("start eval")
             for i, sample in enumerate(progress):
                 sample = utils.move_to_cuda(sample) if self.use_cuda else sample
                 _loss, _sample_size, log_output = self.task.valid_step(sample, self.model, self.criterion)
+                print("log output",log_output)
                 progress.log(log_output, step=i)
                 log_outputs.append(log_output)
+
 
             if self.data_parallel_world_size > 1:
                 log_outputs = distributed_utils.all_gather_list(

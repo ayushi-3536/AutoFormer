@@ -97,6 +97,7 @@ class EvolutionSearcher(object):
             self.vis_dict[cand] = {}
         info = self.vis_dict[cand]
         if 'visited' in info:
+            print('visited already')
             return False
         num_heads, embed_dim, ff_embed_dim, depth = decode_cand_tuple(cand)
 

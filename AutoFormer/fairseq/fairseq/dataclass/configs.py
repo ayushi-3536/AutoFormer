@@ -1074,8 +1074,7 @@ class AutoFormerSearchConfig(FairseqDataclass):
     crossover_num: int = field(default=25)
     mutation_num: int = field(default=25)
     param_limits: int = field(default=64)
-    min_param_limits: int = field(default=18)
-
+    min_param_limits: int = field(default=5)
     resume: str = field(default='')
 
 
