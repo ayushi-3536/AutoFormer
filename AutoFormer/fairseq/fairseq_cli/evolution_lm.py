@@ -116,6 +116,7 @@ class EvolutionSearcher(object):
                                     sample_ffn_embed_dim=ff_embed_dim,
                                     sample_depth=depth)
 
+
         n_parameters = self.model.get_sampled_params_numel()
         info['params'] = n_parameters / 10. ** 6
 
@@ -172,16 +173,17 @@ class EvolutionSearcher(object):
         dimensions = ['num_heads']
 
         depth = random.choice(self.choices['depth'])
-        for dimension in dimensions:
-            for i in range(depth):
-                cand_tuple.append(random.choice(self.choices[dimension]))
+
+        for i in range(depth):
+            cand_tuple.append(random.choice(self.choices['num_heads']))
+
         embed_dim = random.choice(self.choices['embed_dim'])
         for i in range(depth):
             cand_tuple.append(embed_dim)
 
-        ffn_embed_dim = random.choice(self.choices['ffn_embed_dim'])
         for i in range(depth):
-            cand_tuple.append(ffn_embed_dim)
+            cand_tuple.append(random.choice(self.choices['ffn_embed_dim']))
+
         cand_tuple.append(depth)
         logger.debug(f'cand tuple:{cand_tuple}')
         return tuple(cand_tuple)
@@ -221,15 +223,14 @@ class EvolutionSearcher(object):
                     logger.debug(f'embed dim one:{embed_dim[-1]}, embed dim :{embed_dim}')
                     embed_dim = embed_dim + [embed_dim[-1] for _ in range(new_depth - depth)]
                     logger.debug(f'embed dim after:{embed_dim}')
-
-                    ff_embed_dim = ff_embed_dim + [ff_embed_dim[-1] for _ in range(new_depth - depth)]
-                    logger.debug(f'ff embed dim after:{ff_embed_dim}')
+                    ff_embed_dim = ff_embed_dim + [random.choice(self.choices['ffn_embed_dim']) for _ in range(new_depth - depth)]
+                    logger.debug(f'embed dim after:{ff_embed_dim}')
                 else:
-                    num_heads = num_heads[:new_depth]
-                    embed_dim = embed_dim[:new_depth]
-                    ff_embed_dim = ff_embed_dim[:new_depth]
+                    num_heads = num_heads[:depth]
+                    embed_dim = embed_dim[:depth]
+                    ff_embed_dim = ff_embed_dim[:depth]
                     print('if depth> new depth')
-                    print('heads',num_heads,'ed','ffed',ff_embed_dim)
+                    print('heads', num_heads, 'ed', 'ffed', ff_embed_dim)
                 depth=new_depth
 
 
@@ -245,22 +246,17 @@ class EvolutionSearcher(object):
             if random_s < s_prob:
                 logger.debug(f'mutating embed dim:{embed_dim}')
                 sampled_embed_dim = random.choice(self.choices['embed_dim'])
-                #sampled_ff_embed_dim = random.choice(self.choices['ffn_embed_dim'])
                 logger.debug(f'sampled config dim:{sampled_embed_dim}')
                 for i in range(depth):
                     embed_dim[i] = sampled_embed_dim
-                    #ff_embed_dim[i] = sampled_ff_embed_dim
                     logger.debug(f'embed dim while sampling:{embed_dim}')
-            random_s = random.random()
-            if random_s < s_prob:
-                logger.debug(f'mutating ff_embed_dim:{ff_embed_dim}')
-                #sampled_embed_dim = random.choice(self.choices['embed_dim'])
-                sampled_ff_embed_dim = random.choice(self.choices['ffn_embed_dim'])
-                logger.debug(f'sampled_ff_embed_dim:{sampled_ff_embed_dim}')
-                for i in range(depth):
-                    #embed_dim[i] = sampled_embed_dim
-                    ff_embed_dim[i] = sampled_ff_embed_dim
-                    logger.debug(f'ffn embed dim:{ff_embed_dim}')
+
+            for i in range(depth):
+                random_s = random.random()
+                if random_s < m_prob:
+                    print('ffn embed dim')
+                    ff_embed_dim[i] = random.choice(self.choices['ffn_embed_dim'])
+
             result_cand = num_heads + embed_dim + ff_embed_dim + [depth]
 
             logger.debug(f'mutated cand:{result_cand}')
@@ -303,11 +299,10 @@ class EvolutionSearcher(object):
 
             #embed dim and ffn_embed dim has to be same for every layer, crossover just once and propogate the same
             embed_dim_index = list(range(depth, 2*depth))
-            ffn_embed_dim_idx = list(range(2*depth, 3 * depth))
             print("embedding dim index",embed_dim_index)
             logger.debug(f'embed dim index:{embed_dim_index}')
             for idx, (i, j) in enumerate(zip(p1, p2)):
-                if idx not in embed_dim_index and idx not in ffn_embed_dim_idx:
+                if idx not in embed_dim_index:
                     crossover_cfg.append(random.choice([i, j]))
                 elif idx in embed_dim_index:
                     logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx + 1}')
@@ -319,16 +314,6 @@ class EvolutionSearcher(object):
                     for embed_per_block in range(len(embed_dim_index)):
                         crossover_cfg.append(embed_dim)
                         logger.debug(f'appending same embed dim to cfg list:{crossover_cfg}')
-                elif idx in ffn_embed_dim_idx:
-                    logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx + 1}')
-                    if len(crossover_cfg) > idx:
-                        logger.debug('index bigger than len of sampled cfg')
-                        continue
-                    ffn_embed_dim = random.choice([i,j])
-                    logger.debug(f'sampled embed_dim:{ffn_embed_dim}')
-                    for embed_per_block in range(len(ffn_embed_dim_idx)):
-                        crossover_cfg.append(ffn_embed_dim)
-                        logger.debug(f'appending same ffn embed dim to cfg list:{crossover_cfg}')
             logger.debug(f'final cfg list:{tuple(crossover_cfg)}')
             return tuple(crossover_cfg)
 
@@ -572,40 +557,7 @@ def get_args_parser():
 
 def main(args,model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
 
-    # parser = argparse.ArgumentParser('AutoFormer evolution search', parents=[get_args_parser()])
-    # args = parser.parse_args()
-    # if output_dir is not None:
-    #     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    # print(args)
 
-    # seed = args.seed #+ utils.get_rank()
-    # torch.manual_seed(seed)
-    # np.random.seed(seed)
-    # random.seed(args.seed)
-    # cudnn.benchmark = True
-
-
-    # save config for later experiments_configs
-    # with open(os.path.join(args.output_dir, "config.yaml"), 'w') as f:
-    #     f.write(args_text)
-    #
-    # logger.debug(f"Creating LM model")
-    # logger.debug(cfg)
-    #
-    #
-    # validator = Search_Validate(cfg)
-    # model = validator.model
-    # n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    # logger.debug(f'number of params:{n_parameters}')
-    # if args.resume:
-    #     if args.resume.startswith('https'):
-    #         checkpoint = torch.hub.load_state_dict_from_url(
-    #             args.resume, map_location='cpu', check_hash=True)
-    #     else:
-    #         checkpoint = torch.load(args.resume, map_location='cpu')
-    #     logger.debug("resume from checkpoint: {args.resume}")
-
-    # To Test
 
 
     t = time.time()

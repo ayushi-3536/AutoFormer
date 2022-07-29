@@ -88,7 +88,6 @@ class Search_Validate:
             sample_num_heads=config['num_heads'],
             sample_depth=config['depth'],
         )
-        #self.model.to(torch.cuda.current_device())
         print("Done setting model with subnet")
 
         for subset in self.cfg.dataset.valid_subset.split(","):
