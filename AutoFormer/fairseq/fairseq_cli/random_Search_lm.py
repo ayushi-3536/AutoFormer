@@ -36,7 +36,7 @@ def decode_cand_tuple(cand_tuple):
 # print (decode_cand_tuple(tuple((256,256,256,256, 1024,1024,1024,1024,8,4,8,4, 4))))
 
 
-class EvolutionSearcher(object):
+class RandomSearcher(object):
 
     def __init__(self, args, model, validator, choices, output_dir):
         #self.device = device
@@ -200,143 +200,12 @@ class EvolutionSearcher(object):
             logger.debug(f'random {len(self.candidates)}/{num}')
         logger.debug(f'random_num = {len(self.candidates)}')
 
-    def get_mutation(self, k, mutation_num, m_prob, s_prob):
-        assert k in self.keep_top_k
-        logger.debug('mutation ......')
-        res = []
-        iter = 0
-        max_iters = mutation_num * 10
 
-        def random_func():
-            cand = list(random.choice(self.keep_top_k[k]))
-            num_heads, embed_dim, ff_embed_dim, depth= decode_cand_tuple(cand)
-            print('candidate to be muattaed',cand)
-            print('head',num_heads,'ed',embed_dim,'ffed',ff_embed_dim,'depth:',depth)
-            random_s = random.random()
-
-            # depth
-            if random_s < s_prob:
-                print('sampling depth')
-                new_depth = random.choice(self.choices['depth'])
-                print('new depth',new_depth)
-                if new_depth > depth:
-                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_depth - depth)]
-                    logger.debug(f'embed dim one:{embed_dim[-1]}, embed dim :{embed_dim}')
-                    embed_dim = embed_dim + [embed_dim[-1] for _ in range(new_depth - depth)]
-                    logger.debug(f'embed dim after:{embed_dim}')
-                    ff_embed_dim = ff_embed_dim + [random.choice(self.choices['ffn_embed_dim']) for _ in range(new_depth - depth)]
-                    logger.debug(f'embed dim after:{ff_embed_dim}')
-                else:
-                    num_heads = num_heads[:new_depth]
-                    embed_dim = embed_dim[:new_depth]
-                    ff_embed_dim = ff_embed_dim[:new_depth]
-                    print('if depth> new depth')
-                    print('heads', num_heads, 'ed', 'ffed', ff_embed_dim)
-                depth=new_depth
-
-
-            # num_heads
-            for i in range(depth):
-                random_s = random.random()
-                if random_s < m_prob:
-                    print('mutating heads')
-                    num_heads[i] = random.choice(self.choices['num_heads'])
-
-            # embed_dim
-            random_s = random.random()
-            if random_s < s_prob:
-                logger.debug(f'mutating embed dim:{embed_dim}')
-                sampled_embed_dim = random.choice(self.choices['embed_dim'])
-                logger.debug(f'sampled config dim:{sampled_embed_dim}')
-                for i in range(depth):
-                    embed_dim[i] = sampled_embed_dim
-                    logger.debug(f'embed dim while sampling:{embed_dim}')
-
-            for i in range(depth):
-                random_s = random.random()
-                if random_s < m_prob:
-                    print('ffn embed dim')
-                    ff_embed_dim[i] = random.choice(self.choices['ffn_embed_dim'])
-
-            result_cand = num_heads + embed_dim + ff_embed_dim + [depth]
-
-            logger.debug(f'mutated cand:{result_cand}')
-            return tuple(result_cand)
-        print('generating mutation candidates')
-        cand_iter = self.stack_random_cand(random_func)
-        while len(res) < mutation_num and max_iters > 0:
-            max_iters -= 1
-            cand = next(cand_iter)
-
-            if not self.is_legal(cand):
-                continue
-            res.append(cand)
-            logger.debug(f'mutation {len(res)}/{mutation_num}')
-
-        logger.debug(f'mutation_num = {len(res)}')
-        return res
-
-    def get_crossover(self, k, crossover_num):
-        assert k in self.keep_top_k
-        logger.debug('crossover ......')
-        print("crossover")
-        res = []
-        iter = 0
-        max_iters = 10 * crossover_num
-
-        def random_func():
-
-            p1 = random.choice(self.keep_top_k[k])
-            p2 = random.choice(self.keep_top_k[k])
-            max_iters_tmp = 50
-            while len(p1) != len(p2) and max_iters_tmp > 0:
-                max_iters_tmp -= 1
-                p1 = random.choice(self.keep_top_k[k])
-                p2 = random.choice(self.keep_top_k[k])
-            logger.debug(f"cand p1:{p1}")
-            logger.debug(f"cand p2:{p2}")
-            crossover_cfg = []
-            depth = p1[-1]
-
-            #embed dim and ffn_embed dim has to be same for every layer, crossover just once and propogate the same
-            embed_dim_index = list(range(depth, 2*depth))
-            print("embedding dim index",embed_dim_index)
-            logger.debug(f'embed dim index:{embed_dim_index}')
-            for idx, (i, j) in enumerate(zip(p1, p2)):
-                if idx not in embed_dim_index:
-                    crossover_cfg.append(random.choice([i, j]))
-                elif idx in embed_dim_index:
-                    logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx + 1}')
-                    if len(crossover_cfg) > idx:
-                        logger.debug('index bigger than len of sampled cfg')
-                        continue
-                    embed_dim = random.choice([i, j])
-                    logger.debug(f'sampled embed_dim:{embed_dim}')
-                    for embed_per_block in range(len(embed_dim_index)):
-                        crossover_cfg.append(embed_dim)
-                        logger.debug(f'appending same embed dim to cfg list:{crossover_cfg}')
-            logger.debug(f'final cfg list:{tuple(crossover_cfg)}')
-            return tuple(crossover_cfg)
-
-        cand_iter = self.stack_random_cand(random_func)
-        while len(res) < crossover_num and max_iters > 0:
-            max_iters -= 1
-            cand = next(cand_iter)
-            if not self.is_legal(cand):
-                continue
-            res.append(cand)
-            logger.debug(f'crossover {len(res)}/{crossover_num}')
-
-        print('crossover_num = {len(res)}')
-        return res
 
     def search(self):
         print("inside evolutionary search")
         logger.debug(f'population_num = {self.population_num}'
                      f' select_num = {self.select_num}'
-                     f' mutation_num = {self.mutation_num}'
-                     f' crossover_num = {self.crossover_num}'
-                     f' random_num = {self.population_num - self.mutation_num - self.crossover_num}'
                      f' max_epochs = {self.max_epochs}')
 
         # self.load_checkpoint()
@@ -351,9 +220,9 @@ class EvolutionSearcher(object):
                 self.memory[-1].append(cand)
 
             self.update_top_k(
-                self.candidates, k=self.select_num, key=lambda x: self.vis_dict[x]['ppl'], reverse=False)
+                self.candidates, k=self.select_num, key=lambda x: self.vis_dict[x]['ppl'])
             self.update_top_k(
-                self.candidates, k=50, key=lambda x: self.vis_dict[x]['ppl'], reverse=False)
+                self.candidates, k=50, key=lambda x: self.vis_dict[x]['ppl'])
 
             logger.debug(f'epoch = {self.epoch} : top {len(self.keep_top_k[50])} result')
             tmp_accuracy = []
@@ -361,19 +230,13 @@ class EvolutionSearcher(object):
                 logger.debug(f'No.{i + 1} {cand} val ppl = {self.vis_dict[cand]["ppl"]},'
                              f' params = {self.vis_dict[cand]["params"]}')
                 tmp_accuracy.append(self.vis_dict[cand]['ppl'])
-                with open('roberta_search.json', 'a+')as f:
+                with open('roberta_search_random.json', 'a+')as f:
                     json.dump({'epoch': self.epoch, 'rank': i + 1, 'ppl': self.vis_dict[cand]['ppl'],
                                'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
                     f.write("\n")
                     f.close()
             self.top_accuracies.append(tmp_accuracy)
-
-            mutation = self.get_mutation(
-                self.select_num, self.mutation_num, self.m_prob, self.s_prob)
-            crossover = self.get_crossover(self.select_num, self.crossover_num)
-
-            self.candidates = mutation + crossover
 
             self.get_random(self.population_num)
 
@@ -557,14 +420,10 @@ def get_args_parser():
 
 
 
-def main(args,model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
-
-
-
-
+def main(args,model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch_random'):
     t = time.time()
-    print("call evolutionary search")
-    searcher = EvolutionSearcher(args, model, search_validate, choices, output_dir)
+    print("call random search")
+    searcher = RandomSearcher(args, model, search_validate, choices, output_dir)
 
     searcher.search()
 
