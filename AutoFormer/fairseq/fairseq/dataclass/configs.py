@@ -103,6 +103,10 @@ class CommonConfig(FairseqDataclass):
         default='examples/roberta/config/pretraining/supernet-T.yaml',
         metadata={"help": "Seach conf file path"},
     )
+    train_mode: Optional[str] = field(
+        default='super',
+        metadata={"help": "Mode of train ['super', 'retrain']"},
+    )
     no_progress_bar: bool = field(
         default=False, metadata={"help": "disable progress bar"}
     )
@@ -1010,7 +1014,7 @@ class GenerationConfig(FairseqDataclass):
 @dataclass
 class CommonEvalConfig(FairseqDataclass):
     path: Optional[str] = field(
-        default='/work/dlclarge1/sharmaa-dltrans/AutoFormer/AutoFormer/fairseq/multirun/2022-07-25/13-22-16/0/checkpoints/checkpoint_best.pt',
+        default='/home/ajesh/Projects/DL-lab/Main-Project/test/AutoFormer/AutoFormer/fairseq/multirun/checkpoint_best.pt',
         metadata={"help": "path(s) to model file(s), colon separated"},
     )
     post_process: Optional[str] = field(

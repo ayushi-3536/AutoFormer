@@ -796,8 +796,14 @@ class Trainer(object):
 
         # forward and backward pass
         logging_outputs, sample_size, ooms = [], 0, 0
+        print(self.cfg.common.train_mode)
+        if(self.cfg.common.train_mode == 'super'):
+            config = sample_config(self.cfg.SEARCH_SPACE)
+        elif(self.cfg.common.train_mode == 'retrain'):
+            config = sample_config(self.cfg.RETRAIN)
+        else:
+            raise Exception(f"Invalid train mode {self.cfg.common.train_mode}")
 
-        config = sample_config(self.cfg.SEARCH_SPACE)
         self.model.set_sample_config(
             sample_embed_dim=config['EMBED_DIM'],
             sample_ffn_embed_dim=config['FFN_EMBED_DIM'],

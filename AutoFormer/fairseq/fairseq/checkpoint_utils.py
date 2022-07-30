@@ -433,6 +433,7 @@ def load_model_ensemble_and_task(
                 )
 
             if task is None:
+                cfg.task.data = os.path.join(os.curdir, "data-bin/wikitext-103")
                 task = tasks.setup_task(cfg.task)
 
             if "task_state" in state:

@@ -176,7 +176,7 @@ def cli_main():
                               model=model,
                               search_validate=search_validate,
                               choices=choices,
-                              output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch')
+                              output_dir='robertasearch')
 
     #searcher.search()
 
