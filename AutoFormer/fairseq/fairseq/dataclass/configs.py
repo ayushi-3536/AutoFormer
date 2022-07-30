@@ -1066,6 +1066,7 @@ class EvalLMConfig(FairseqDataclass):
 
 @dataclass
 class AutoFormerSearchConfig(FairseqDataclass):
+    strategy:str = field(default='evolution')
     max_epochs: int = field(default=20)
     select_num: int = field(default=10)
     population_num: int = field(default=50)
