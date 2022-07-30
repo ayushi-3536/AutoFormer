@@ -297,7 +297,7 @@ class DistributedTrainingConfig(FairseqDataclass):
         },
     )
     distributed_no_spawn: bool = field(
-        default=False,
+        default=True,
         metadata={
             "help": "do not spawn multiple processes even if multiple GPUs are visible"
         },
@@ -309,7 +309,7 @@ class DistributedTrainingConfig(FairseqDataclass):
         default="none", metadata={"help": "communication hook"}
     )
     bucket_cap_mb: int = field(
-        default=25, metadata={"help": "bucket size for reduction"}
+        default=10, metadata={"help": "bucket size for reduction"}
     )
     fix_batches_to_gpus: bool = field(
         default=False,
@@ -467,7 +467,7 @@ class DistributedTrainingConfig(FairseqDataclass):
 @dataclass
 class DatasetConfig(FairseqDataclass):
     num_workers: int = field(
-        default=1, metadata={"help": "how many subprocesses to use for data loading"}
+        default=0, metadata={"help": "how many subprocesses to use for data loading"}
     )
     skip_invalid_size_inputs_valid_test: bool = field(
         default=False,

@@ -129,7 +129,7 @@ class Search_Validate:
             for i, sample in enumerate(progress):
                 sample = utils.move_to_cuda(sample) if self.use_cuda else sample
                 _loss, _sample_size, log_output = self.task.valid_step(sample, self.model, self.criterion)
-                print("log output",log_output)
+                #print("log output",log_output)
                 progress.log(log_output, step=i)
                 log_outputs.append(log_output)
 
@@ -154,6 +154,8 @@ class Search_Validate:
 #Todo:see if needed to extract config
 
 def cli_main():
+    import torch.multiprocessing
+    torch.multiprocessing.set_sharing_strategy('file_system')
     parser = options.get_search_validation_parser()
     args = options.parse_args_and_arch(parser)
     print("before parsing",args)

@@ -227,9 +227,9 @@ class EvolutionSearcher(object):
                     ff_embed_dim = ff_embed_dim + [random.choice(self.choices['ffn_embed_dim']) for _ in range(new_depth - depth)]
                     logger.debug(f'embed dim after:{ff_embed_dim}')
                 else:
-                    num_heads = num_heads[:depth]
-                    embed_dim = embed_dim[:depth]
-                    ff_embed_dim = ff_embed_dim[:depth]
+                    num_heads = num_heads[:new_depth]
+                    embed_dim = embed_dim[:new_depth]
+                    ff_embed_dim = ff_embed_dim[:new_depth]
                     print('if depth> new depth')
                     print('heads', num_heads, 'ed', 'ffed', ff_embed_dim)
                 depth=new_depth
