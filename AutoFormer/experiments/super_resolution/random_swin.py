@@ -214,7 +214,7 @@ class RandomSearcher(object):
                 logger.debug(f'No.{i+1} {cand} val psnr = { self.vis_dict[cand]["psnr"]},'
                              f' params = {self.vis_dict[cand]["params"]}')
                 tmp_accuracy.append(self.vis_dict[cand]['psnr'])
-                with open('swinir_search.json', 'a+')as f:
+                with open('swinir_search_random.json', 'a+')as f:
                     json.dump({'epoch': self.epoch, 'rank': i+1, 'psnr': self.vis_dict[cand]['psnr'],
                                'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
