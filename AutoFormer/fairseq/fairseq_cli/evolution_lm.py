@@ -366,6 +366,7 @@ class EvolutionSearcher(object):
                                'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
                     f.write("\n")
+                    f.close()
             self.top_accuracies.append(tmp_accuracy)
 
             mutation = self.get_mutation(
