@@ -164,8 +164,9 @@ def cli_main():
     override_parser = options.get_validation_parser()
     override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
     print("after override", override_args)
+    cfg = convert_namespace_to_omegaconf(override_args)
 
-    search_validate = Search_Validate(convert_namespace_to_omegaconf(override_args))
+    search_validate = Search_Validate(cfg)
     model = search_validate.model
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)

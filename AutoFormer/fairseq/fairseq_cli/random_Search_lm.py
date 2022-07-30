@@ -44,16 +44,12 @@ class RandomSearcher(object):
         self.validator = validator
         self.args = args
         self.max_epochs = args.max_epochs
-        self.select_num = args.select_num
-        self.population_num = args.population_num
-        self.m_prob = args.m_prob
-        self.crossover_num = args.crossover_num
-        self.mutation_num = args.mutation_num
+        self.select_num = 50
+        self.population_num = 50
         self.parameters_limits = args.param_limits
         self.min_parameters_limits = args.min_param_limits
         # self.val_loader = val_loader
         self.output_dir = output_dir
-        self.s_prob = args.s_prob
         self.memory = []
         self.vis_dict = {}
         self.keep_top_k = {self.select_num: [], 50: []}
@@ -218,8 +214,8 @@ class RandomSearcher(object):
 
             self.update_top_k(
                 self.candidates, k=self.select_num, key=lambda x: self.vis_dict[x]['ppl'], reverse=False)
-            self.update_top_k(
-                self.candidates, k=50, key=lambda x: self.vis_dict[x]['ppl'], reverse=False)
+            # self.update_top_k(
+            #     self.candidates, k=50, key=lambda x: self.vis_dict[x]['ppl'], reverse=False)
 
             logger.debug(f'epoch = {self.epoch} : top {len(self.keep_top_k[50])} result')
             tmp_accuracy = []
@@ -234,7 +230,7 @@ class RandomSearcher(object):
                     f.write("\n")
                     f.close()
             self.top_accuracies.append(tmp_accuracy)
-
+            self.candidate=[]
             self.get_random(self.population_num)
 
             self.epoch += 1
