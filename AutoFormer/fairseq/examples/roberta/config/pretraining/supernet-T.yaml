@@ -33,17 +33,25 @@ SEARCH_SPACE:
 # Change config if needed!
 RETRAIN:
   EMBED_DIM:
-    - 256
-    - 384
+    - 512 
+    - 512
+    - 512
+    - 512
+    - 512
     - 512
   NUM_HEADS:
     - 4
     - 8
+    - 8
+    - 4
+    - 8
+    - 8
   FFN_EMBED_DIM:
-    - 1024
+    - 2048
+    - 1536
+    - 1536
+    - 2048
     - 1536
     - 2048
   DEPTH:
-    - 4
-    - 5
     - 6

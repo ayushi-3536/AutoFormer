@@ -800,7 +800,8 @@ class Trainer(object):
         if(self.cfg.common.train_mode == 'super'):
             config = sample_config(self.cfg.SEARCH_SPACE)
         elif(self.cfg.common.train_mode == 'retrain'):
-            config = sample_config(self.cfg.RETRAIN)
+            config = self.cfg.RETRAIN
+            config.DEPTH = int(config.DEPTH)
         else:
             raise Exception(f"Invalid train mode {self.cfg.common.train_mode}")
 
