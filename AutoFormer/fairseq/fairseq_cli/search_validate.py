@@ -177,7 +177,7 @@ def cli_main():
                }
 
     t = time.time()
-    strategy='evolution'
+    strategy='random'
 
     if strategy == 'evolution':
         print('start evolutionary search')

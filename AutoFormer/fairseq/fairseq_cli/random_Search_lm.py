@@ -187,10 +187,16 @@ class RandomSearcher(object):
     def get_random(self, num):
         logger.debug('random select ........')
         cand_iter = self.stack_random_cand(self.get_random_cand)
+        print("len of can",len(self.candidates))
+        print("pop num desired",num)
+
         while len(self.candidates) < num:
+            print("l of c",len(self.candidates))
             cand = next(cand_iter)
             if not self.is_legal(cand):
+                print("cand not leag")
                 continue
+            print("cand legal appending")
             self.candidates.append(cand)
             logger.debug(f'random {len(self.candidates)}/{num}')
         logger.debug(f'random_num = {len(self.candidates)}')
@@ -230,7 +236,7 @@ class RandomSearcher(object):
                     f.write("\n")
                     f.close()
             self.top_accuracies.append(tmp_accuracy)
-            self.candidate=[]
+            self.candidates=[]
             self.get_random(self.population_num)
 
             self.epoch += 1

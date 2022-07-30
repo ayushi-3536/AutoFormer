@@ -6,14 +6,14 @@ import torch
 import torch.backends.cudnn as cudnn
 from pathlib import Path
 from loguru import logger
-from lib.datasets import build_dataset
-from lib import utils
-from experiments.classification.supernet_engine import evaluate
-from model.vision_transformer.supernet_transformer import Vision_TransformerSuper
+from AutoFormer.lib.datasets import build_dataset
+from AutoFormer.lib import utils
+from AutoFormer.experiments.classification.supernet_engine import evaluate
+from AutoFormer.model.vision_transformer.supernet_transformer import Vision_TransformerSuper
 import argparse
 import os
 import yaml
-from lib.config import cfg, update_config_from_file
+from AutoFormer.lib.config import cfg, update_config_from_file
 import json
 logger.add(sys.stdout, level='DEBUG')
 
@@ -202,7 +202,7 @@ def get_args_parser():
 
     # evolution search parameters
     parser.add_argument('--max-epochs', type=int, default=20)
-    parser.add_argument('--select-num', type=int, default=10)
+    parser.add_argument('--select-num', type=int, default=50)
     parser.add_argument('--population-num', type=int, default=50)
     parser.add_argument('--epochs', type=int, default=30)
     parser.add_argument('--param-limits', type=float, default=23)
