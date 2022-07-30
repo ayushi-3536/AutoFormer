@@ -187,9 +187,6 @@ class RandomSearcher(object):
     def search(self):
         logger.debug(f'population_num = {self.population_num}'
                      f' select_num = {self.select_num}'
-                     f' mutation_num = {self.mutation_num}'
-                     f' crossover_num = {self.crossover_num}'
-                     f' random_num = {self.population_num - self.mutation_num - self.crossover_num}'
                      f' max_epochs = {self.max_epochs}')
 
         # self.load_checkpoint()
