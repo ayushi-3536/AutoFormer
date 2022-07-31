@@ -4,6 +4,7 @@ import typing
 
 from collections import namedtuple
 
+import numpy as np
 import matplotlib.pyplot as plt
 from pylab import rcParams
 import pandas as pd
@@ -42,15 +43,27 @@ def plot_all(evolution_input_path: typing.Union[str, pathlib.Path],
         ax.set_ylabel(metric.full_name, fontsize=16)
         ax.set_ylim(metric.plot_low, metric.plot_high)
 
-        ax.scatter(ev_data_df[x_col], ev_data_df[perf_col], alpha=OPACITY, c='tab:red', label='Evolution')
-        ax.scatter(rs_data_df[x_col], rs_data_df[perf_col], alpha=OPACITY, c='tab:blue', label='Random')
+        mix_scatter = True
+        if not mix_scatter:
+            ax.scatter(ev_data_df[x_col], ev_data_df[perf_col], alpha=OPACITY, c='tab:red', label='Evolution')
+            ax.scatter(rs_data_df[x_col], rs_data_df[perf_col], alpha=OPACITY, c='tab:blue', label='Random')
+        else:
+            all_x = np.concatenate([ev_data_df[x_col].values, rs_data_df[x_col].values])
+            all_y = np.concatenate([ev_data_df[perf_col].values, rs_data_df[perf_col].values])
+            np.random.seed(42)
+            colors = np.array(['tab:red'] * len(ev_data_df) + ['tab:blue'] * len(rs_data_df))
+            random_order = np.random.choice(len(all_x), len(all_x), replace=False)
+            ax.scatter(all_x[random_order], all_y[random_order], alpha=OPACITY, c=colors[random_order])
 
-        # Have the ticks be integers
-        plt.locator_params(axis="both", integer=True, tight=True)
+            # Phantom plots just to register the legends
+            ax.scatter([], [], color='tab:red', label='Evolution')
+            ax.scatter([], [], color='tab:blue', label='Random')
 
         leg = plt.legend(markerscale=1.5)
         for lh in leg.legendHandles: 
             lh.set_alpha(1)
+        # Have the ticks be integers
+        plt.locator_params(axis="both", integer=True, tight=True)
 
         return fig, ax
 
