@@ -1014,7 +1014,7 @@ class GenerationConfig(FairseqDataclass):
 @dataclass
 class CommonEvalConfig(FairseqDataclass):
     path: Optional[str] = field(
-        default='/home/ajesh/Projects/DL-lab/Main-Project/test/AutoFormer/AutoFormer/fairseq/multirun/checkpoint_best.pt',
+        default='multirun/checkpoint_best.pt',
         metadata={"help": "path(s) to model file(s), colon separated"},
     )
     post_process: Optional[str] = field(
