@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class LayerNormSuper(nn.Module):
     """Applies Layer Normalization with ability to sample weights
 

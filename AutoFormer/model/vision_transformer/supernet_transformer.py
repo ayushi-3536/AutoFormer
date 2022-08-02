@@ -1,13 +1,15 @@
 import math
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from AutoFormer.lib.utils import calc_dropout
-from AutoFormer.model import LinearSuper,\
-    LayerNormSuper,AttentionSuper,PatchembedSuper,\
-    trunc_normal_,DropPath
-import numpy as np
+from AutoFormer.model import LinearSuper, \
+    LayerNormSuper, AttentionSuper, PatchembedSuper, \
+    trunc_normal_, DropPath
+
 
 def gelu(x: torch.Tensor) -> torch.Tensor:
     if hasattr(torch.nn.functional, 'gelu'):
@@ -20,7 +22,8 @@ class Vision_TransformerSuper(nn.Module):
 
     def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=1000, embed_dim=768, depth=12,
                  num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
-                 drop_path_rate=0., pre_norm=True, scale=False, gp=False, relative_position=False, change_qkv=False, abs_pos = True, max_relative_position=14):
+                 drop_path_rate=0., pre_norm=True, scale=False, gp=False, relative_position=False, change_qkv=False,
+                 abs_pos=True, max_relative_position=14):
         super(Vision_TransformerSuper, self).__init__()
         # the configs of super arch
         self.super_embed_dim = embed_dim
@@ -31,8 +34,8 @@ class Vision_TransformerSuper(nn.Module):
         self.super_dropout = drop_rate
         self.super_attn_dropout = attn_drop_rate
         self.num_classes = num_classes
-        self.pre_norm=pre_norm
-        self.scale=scale
+        self.pre_norm = pre_norm
+        self.scale = scale
         self.patch_embed_super = PatchembedSuper(img_size=img_size, patch_size=patch_size,
                                                  in_chans=in_chans, embed_dim=embed_dim)
         self.gp = gp
@@ -71,7 +74,6 @@ class Vision_TransformerSuper(nn.Module):
         if self.pre_norm:
             self.norm = LayerNormSuper(super_embed_dim=embed_dim)
 
-
         # classifier head
         self.head = LinearSuper(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
@@ -109,14 +111,15 @@ class Vision_TransformerSuper(nn.Module):
             # not exceed sample layer number
             if i < self.sample_layer_num:
                 sample_dropout = calc_dropout(self.super_dropout, self.sample_embed_dim[i], self.super_embed_dim)
-                sample_attn_dropout = calc_dropout(self.super_attn_dropout, self.sample_embed_dim[i], self.super_embed_dim)
+                sample_attn_dropout = calc_dropout(self.super_attn_dropout, self.sample_embed_dim[i],
+                                                   self.super_embed_dim)
                 blocks.set_sample_config(is_identity_layer=False,
-                                        sample_embed_dim=self.sample_embed_dim[i],
-                                        sample_mlp_ratio=self.sample_mlp_ratio[i],
-                                        sample_num_heads=self.sample_num_heads[i],
-                                        sample_dropout=sample_dropout,
-                                        sample_out_dim=self.sample_output_dim[i],
-                                        sample_attn_dropout=sample_attn_dropout)
+                                         sample_embed_dim=self.sample_embed_dim[i],
+                                         sample_mlp_ratio=self.sample_mlp_ratio[i],
+                                         sample_num_heads=self.sample_num_heads[i],
+                                         sample_dropout=sample_dropout,
+                                         sample_out_dim=self.sample_output_dim[i],
+                                         sample_attn_dropout=sample_attn_dropout)
             # exceeds sample layer number
             else:
                 blocks.set_sample_config(is_identity_layer=True)
@@ -133,15 +136,17 @@ class Vision_TransformerSuper(nn.Module):
                     continue
                 numels.append(module.calc_sampled_param_num())
 
-        return sum(numels) + self.sample_embed_dim[0]* (2 +self.patch_embed_super.num_patches)
+        return sum(numels) + self.sample_embed_dim[0] * (2 + self.patch_embed_super.num_patches)
+
     def get_complexity(self, sequence_length):
         total_flops = 0
         total_flops += self.patch_embed_super.get_complexity(sequence_length)
         total_flops += np.prod(self.pos_embed[..., :self.sample_embed_dim[0]].size()) / 2.0
         for blk in self.blocks:
-            total_flops +=  blk.get_complexity(sequence_length+1)
-        total_flops += self.head.get_complexity(sequence_length+1)
+            total_flops += blk.get_complexity(sequence_length + 1)
+        total_flops += self.head.get_complexity(sequence_length + 1)
         return total_flops
+
     def forward_features(self, x):
         B = x.shape[0]
         x = self.patch_embed_super(x)
@@ -160,7 +165,7 @@ class Vision_TransformerSuper(nn.Module):
             x = self.norm(x)
 
         if self.gp:
-            return torch.mean(x[:, 1:] , dim=1)
+            return torch.mean(x[:, 1:], dim=1)
 
         return x[:, 0]
 
@@ -219,8 +224,8 @@ class TransformerEncoderLayer(nn.Module):
         self.fc1 = LinearSuper(super_in_dim=self.super_embed_dim, super_out_dim=self.super_ffn_embed_dim_this_layer)
         self.fc2 = LinearSuper(super_in_dim=self.super_ffn_embed_dim_this_layer, super_out_dim=self.super_embed_dim)
 
-
-    def set_sample_config(self, is_identity_layer, sample_embed_dim=None, sample_mlp_ratio=None, sample_num_heads=None, sample_dropout=None, sample_attn_dropout=None, sample_out_dim=None):
+    def set_sample_config(self, is_identity_layer, sample_embed_dim=None, sample_mlp_ratio=None, sample_num_heads=None,
+                          sample_dropout=None, sample_attn_dropout=None, sample_out_dim=None):
 
         if is_identity_layer:
             self.is_identity_layer = True
@@ -231,20 +236,23 @@ class TransformerEncoderLayer(nn.Module):
         self.sample_embed_dim = sample_embed_dim
         self.sample_out_dim = sample_out_dim
         self.sample_mlp_ratio = sample_mlp_ratio
-        self.sample_ffn_embed_dim_this_layer = int(sample_embed_dim*sample_mlp_ratio)
+        self.sample_ffn_embed_dim_this_layer = int(sample_embed_dim * sample_mlp_ratio)
         self.sample_num_heads_this_layer = sample_num_heads
 
         self.sample_dropout = sample_dropout
         self.sample_attn_dropout = sample_attn_dropout
         self.attn_layer_norm.set_sample_config(sample_embed_dim=self.sample_embed_dim)
 
-        self.attn.set_sample_config(sample_q_embed_dim=self.sample_num_heads_this_layer*64, sample_num_heads=self.sample_num_heads_this_layer, sample_in_embed_dim=self.sample_embed_dim)
+        self.attn.set_sample_config(sample_q_embed_dim=self.sample_num_heads_this_layer * 64,
+                                    sample_num_heads=self.sample_num_heads_this_layer,
+                                    sample_in_embed_dim=self.sample_embed_dim)
 
-        self.fc1.set_sample_config(sample_in_dim=self.sample_embed_dim, sample_out_dim=self.sample_ffn_embed_dim_this_layer)
-        self.fc2.set_sample_config(sample_in_dim=self.sample_ffn_embed_dim_this_layer, sample_out_dim=self.sample_out_dim)
+        self.fc1.set_sample_config(sample_in_dim=self.sample_embed_dim,
+                                   sample_out_dim=self.sample_ffn_embed_dim_this_layer)
+        self.fc2.set_sample_config(sample_in_dim=self.sample_ffn_embed_dim_this_layer,
+                                   sample_out_dim=self.sample_out_dim)
 
         self.ffn_layer_norm.set_sample_config(sample_embed_dim=self.sample_embed_dim)
-
 
     def forward(self, x):
         """
@@ -290,19 +298,14 @@ class TransformerEncoderLayer(nn.Module):
             return layer_norm(x)
         else:
             return x
+
     def get_complexity(self, sequence_length):
         total_flops = 0
         if self.is_identity_layer:
             return total_flops
-        total_flops += self.attn_layer_norm.get_complexity(sequence_length+1)
-        total_flops += self.attn.get_complexity(sequence_length+1)
-        total_flops += self.ffn_layer_norm.get_complexity(sequence_length+1)
-        total_flops += self.fc1.get_complexity(sequence_length+1)
-        total_flops += self.fc2.get_complexity(sequence_length+1)
+        total_flops += self.attn_layer_norm.get_complexity(sequence_length + 1)
+        total_flops += self.attn.get_complexity(sequence_length + 1)
+        total_flops += self.ffn_layer_norm.get_complexity(sequence_length + 1)
+        total_flops += self.fc1.get_complexity(sequence_length + 1)
+        total_flops += self.fc2.get_complexity(sequence_length + 1)
         return total_flops
-
-
-
-
-
-

@@ -1,6 +1,7 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
 from timm.models.layers import to_2tuple
+
 
 class PatchMerging(nn.Module):
     r""" Patch Merging Layer.
@@ -145,5 +146,3 @@ class PatchUnEmbed(nn.Module):
     def calc_sampled_param_num(self):
         # all submodules are calculated in their respective classes
         return 0
-
-

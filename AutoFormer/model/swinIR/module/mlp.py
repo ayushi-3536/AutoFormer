@@ -1,6 +1,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
+
 from AutoFormer.model.vision_transformer.module.Linear_super import LinearSuper
+
 
 class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
@@ -32,6 +34,6 @@ class Mlp(nn.Module):
         self.fc2.set_sample_config(int(sample_embed_dim * sample_mlp_ratio), int(sample_embed_dim))
         self.sample_drop = sample_drop
 
-    #Return 0, Linear layer return params
+    # Return 0, Linear layer return params
     def calc_sampled_param_num(self):
         return 0

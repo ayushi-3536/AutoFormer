@@ -1,7 +1,9 @@
 import math
+
 import torch.nn as nn
+
 from AutoFormer.model.swinIR.module import Conv2DSuper
-import torch.nn.functional as F
+
 
 class Upsample(nn.Sequential):
     """Upsample module.

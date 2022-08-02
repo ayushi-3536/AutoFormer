@@ -34,7 +34,7 @@ def main():
     params = model.get_sampled_params_numel(same_as_super_cfg)
     print("model (params_numel cnt): ", params)
 
-    #--------------------------------
+    # --------------------------------
     # Check with smaller sample
     # Idea: The bigger `model` sampled with a small sample_cfg
     #       should have same params as a newly initialized `model_small`

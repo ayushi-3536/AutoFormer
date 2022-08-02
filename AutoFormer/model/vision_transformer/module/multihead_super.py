@@ -1,15 +1,18 @@
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
+
+from AutoFormer.model.vision_transformer.utils import trunc_normal_
 from .Linear_super import LinearSuper
 from .qkv_super import qkv_super
-from AutoFormer.model.vision_transformer.utils import trunc_normal_
+
 
 def softmax(x, dim, onnx_trace=False):
     if onnx_trace:
         return F.softmax(x.float(), dim=dim)
     else:
         return F.softmax(x, dim=dim, dtype=torch.float32)
+
 
 class RelativePosition2D_super(nn.Module):
 
@@ -31,8 +34,8 @@ class RelativePosition2D_super(nn.Module):
 
     def set_sample_config(self, sample_head_dim):
         self.sample_head_dim = sample_head_dim
-        self.sample_embeddings_table_h = self.embeddings_table_h[:,:sample_head_dim]
-        self.sample_embeddings_table_v = self.embeddings_table_v[:,:sample_head_dim]
+        self.sample_embeddings_table_h = self.embeddings_table_h[:, :sample_head_dim]
+        self.sample_embeddings_table_v = self.embeddings_table_v[:, :sample_head_dim]
 
     def calc_sampled_param_num(self):
         return self.sample_embeddings_table_h.numel() + self.sample_embeddings_table_v.numel()
@@ -44,8 +47,8 @@ class RelativePosition2D_super(nn.Module):
         range_vec_q = torch.arange(length_q)
         range_vec_k = torch.arange(length_k)
         # compute the row and column distance
-        distance_mat_v = (range_vec_k[None, :] // int(length_q ** 0.5 )  - range_vec_q[:, None] // int(length_q ** 0.5 ))
-        distance_mat_h = (range_vec_k[None, :] % int(length_q ** 0.5 ) - range_vec_q[:, None] % int(length_q ** 0.5 ))
+        distance_mat_v = (range_vec_k[None, :] // int(length_q ** 0.5) - range_vec_q[:, None] // int(length_q ** 0.5))
+        distance_mat_h = (range_vec_k[None, :] % int(length_q ** 0.5) - range_vec_q[:, None] % int(length_q ** 0.5))
         # clip the distance to the range of [-max_relative_position, max_relative_position]
         distance_mat_clipped_v = torch.clamp(distance_mat_v, -self.max_relative_position, self.max_relative_position)
         distance_mat_clipped_h = torch.clamp(distance_mat_h, -self.max_relative_position, self.max_relative_position)
@@ -54,8 +57,8 @@ class RelativePosition2D_super(nn.Module):
         final_mat_v = distance_mat_clipped_v + self.max_relative_position + 1
         final_mat_h = distance_mat_clipped_h + self.max_relative_position + 1
         # pad the 0 which represent the cls token
-        final_mat_v = torch.nn.functional.pad(final_mat_v, (1,0,1,0), "constant", 0)
-        final_mat_h = torch.nn.functional.pad(final_mat_h, (1,0,1,0), "constant", 0)
+        final_mat_v = torch.nn.functional.pad(final_mat_v, (1, 0, 1, 0), "constant", 0)
+        final_mat_h = torch.nn.functional.pad(final_mat_h, (1, 0, 1, 0), "constant", 0)
 
         final_mat_v = torch.LongTensor(final_mat_v).cuda()
         final_mat_h = torch.LongTensor(final_mat_h).cuda()
@@ -64,9 +67,11 @@ class RelativePosition2D_super(nn.Module):
 
         return embeddings
 
+
 class AttentionSuper(nn.Module):
-    def __init__(self, super_embed_dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0., normalization = False, relative_position = False,
-                 num_patches = None, max_relative_position=14, scale=False, change_qkv = False):
+    def __init__(self, super_embed_dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.,
+                 normalization=False, relative_position=False,
+                 num_patches=None, max_relative_position=14, scale=False, change_qkv=False):
         super().__init__()
         self.num_heads = num_heads
         head_dim = super_embed_dim // num_heads
@@ -82,8 +87,8 @@ class AttentionSuper(nn.Module):
 
         self.relative_position = relative_position
         if self.relative_position:
-            self.rel_pos_embed_k = RelativePosition2D_super(super_embed_dim //num_heads, max_relative_position)
-            self.rel_pos_embed_v = RelativePosition2D_super(super_embed_dim //num_heads, max_relative_position)
+            self.rel_pos_embed_k = RelativePosition2D_super(super_embed_dim // num_heads, max_relative_position)
+            self.rel_pos_embed_v = RelativePosition2D_super(super_embed_dim // num_heads, max_relative_position)
         self.max_relative_position = max_relative_position
         self.sample_qk_embed_dim = None
         self.sample_v_embed_dim = None
@@ -108,14 +113,16 @@ class AttentionSuper(nn.Module):
             self.sample_qk_embed_dim = sample_q_embed_dim
             self.sample_scale = (self.sample_qk_embed_dim // self.sample_num_heads) ** -0.5
 
-        self.qkv.set_sample_config(sample_in_dim=sample_in_embed_dim, sample_out_dim=3*self.sample_qk_embed_dim)
+        self.qkv.set_sample_config(sample_in_dim=sample_in_embed_dim, sample_out_dim=3 * self.sample_qk_embed_dim)
         self.proj.set_sample_config(sample_in_dim=self.sample_qk_embed_dim, sample_out_dim=sample_in_embed_dim)
         if self.relative_position:
             self.rel_pos_embed_k.set_sample_config(self.sample_qk_embed_dim // sample_num_heads)
             self.rel_pos_embed_v.set_sample_config(self.sample_qk_embed_dim // sample_num_heads)
+
     def calc_sampled_param_num(self):
 
         return 0
+
     def get_complexity(self, sequence_length):
         total_flops = 0
         total_flops += self.qkv.get_complexity(sequence_length)
@@ -132,7 +139,7 @@ class AttentionSuper(nn.Module):
     def forward(self, x):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.sample_num_heads, -1).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]   # make torchscript happy (cannot use tensor as tuple)
+        q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
 
         attn = (q @ k.transpose(-2, -1)) * self.sample_scale
         if self.relative_position:
@@ -143,14 +150,16 @@ class AttentionSuper(nn.Module):
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
 
-        x = (attn @ v).transpose(1,2).reshape(B, N, -1)
+        x = (attn @ v).transpose(1, 2).reshape(B, N, -1)
         if self.relative_position:
             r_p_v = self.rel_pos_embed_v(N, N)
             attn_1 = attn.permute(2, 0, 1, 3).reshape(N, B * self.sample_num_heads, -1)
             # The size of attention is (B, num_heads, N, N), reshape it to (N, B*num_heads, N) and do batch matmul with
             # the relative position embedding of V (N, N, head_dim) get shape like (N, B*num_heads, head_dim). We reshape it to the
             # same size as x (B, num_heads, N, hidden_dim)
-            x = x + (attn_1 @ r_p_v).transpose(1, 0).reshape(B, self.sample_num_heads, N, -1).transpose(2,1).reshape(B, N, -1)
+            x = x + (attn_1 @ r_p_v).transpose(1, 0).reshape(B, self.sample_num_heads, N, -1).transpose(2, 1).reshape(B,
+                                                                                                                      N,
+                                                                                                                      -1)
 
         if self.fc_scale:
             x = x * (self.super_embed_dim / self.sample_qk_embed_dim)

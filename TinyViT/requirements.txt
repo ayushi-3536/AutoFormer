@@ -1,7 +1,0 @@
-timm==0.4.12
-easydict
-yacs
-termcolor
-lmdb
-tqdm
-wandb

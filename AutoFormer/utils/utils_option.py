@@ -1,10 +1,9 @@
+import glob
+import json
 import os
+import re
 from collections import OrderedDict
 from datetime import datetime
-import json
-import re
-import glob
-
 
 '''
 # --------------------------------------------
@@ -21,7 +20,6 @@ def get_timestamp():
 
 
 def parse(opt_path, is_train=True):
-
     # ----------------------------------------
     # remove comments starting with '//'
     # ----------------------------------------
@@ -124,7 +122,7 @@ def parse(opt_path, is_train=True):
     if 'G_optimizer_type' not in opt['train']:
         opt['train']['G_optimizer_type'] = "adam"
     if 'G_optimizer_betas' not in opt['train']:
-        opt['train']['G_optimizer_betas'] = [0.9,0.999]
+        opt['train']['G_optimizer_betas'] = [0.9, 0.999]
     if 'G_scheduler_restart_weights' not in opt['train']:
         opt['train']['G_scheduler_restart_weights'] = 1
     if 'G_optimizer_wd' not in opt['train']:
@@ -164,7 +162,6 @@ def parse(opt_path, is_train=True):
             opt['netD']['n_layers'] = 3
         if 'norm_type' not in opt['netD']:
             opt['netD']['norm_type'] = 'spectral'
-
 
     return opt
 
@@ -206,7 +203,7 @@ def save(opt):
     opt_path_copy = opt['path']['options']
     dirname, filename_ext = os.path.split(opt_path)
     filename, ext = os.path.splitext(filename_ext)
-    dump_path = os.path.join(opt_path_copy, filename+get_timestamp()+ext)
+    dump_path = os.path.join(opt_path_copy, filename + get_timestamp() + ext)
     with open(dump_path, 'w') as dump_file:
         json.dump(opt, dump_file, indent=2)
 

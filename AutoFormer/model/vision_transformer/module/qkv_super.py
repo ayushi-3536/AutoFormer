@@ -1,7 +1,7 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 
 
 class qkv_super(nn.Linear):
@@ -45,7 +45,7 @@ class qkv_super(nn.Linear):
     def _sample_parameters(self):
         self.samples['weight'] = sample_weight(self.weight, self.sample_in_dim, self.sample_out_dim)
         self.samples['bias'] = self.bias
-        self.sample_scale = self.super_out_dim/self.sample_out_dim
+        self.sample_scale = self.super_out_dim / self.sample_out_dim
         if self.bias is not None:
             self.samples['bias'] = sample_bias(self.bias, self.sample_out_dim)
         return self.samples
@@ -64,15 +64,16 @@ class qkv_super(nn.Linear):
             bias_numel = 0
 
         return weight_numel + bias_numel
+
     def get_complexity(self, sequence_length):
         total_flops = 0
-        total_flops += sequence_length *  np.prod(self.samples['weight'].size())
+        total_flops += sequence_length * np.prod(self.samples['weight'].size())
         return total_flops
 
-def sample_weight(weight, sample_in_dim, sample_out_dim):
 
+def sample_weight(weight, sample_in_dim, sample_out_dim):
     sample_weight = weight[:, :sample_in_dim]
-    sample_weight = torch.cat([sample_weight[i:sample_out_dim:3, :] for i in range(3)], dim =0)
+    sample_weight = torch.cat([sample_weight[i:sample_out_dim:3, :] for i in range(3)], dim=0)
 
     return sample_weight
 

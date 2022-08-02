@@ -3,21 +3,18 @@
 # Originally Written by Ze Liu, Modified by Jingyun Liang.
 # -----------------------------------------------------------------------------------
 
-import math
-from typing import Union, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+
+import logging
 from AutoFormer.lib.utils import calc_dropout
 from AutoFormer.model.swinIR.module import WindowAttention, Mlp, LayerNormSuper, \
-    PatchUnEmbed, PatchEmbed, PatchMerging, UpsampleOneStep, Upsample
-import logging
+    PatchUnEmbed, PatchEmbed, UpsampleOneStep, Upsample
 
 logger = logging.getLogger('swinIR_model')
-
-
 
 
 def window_partition(x, window_size):
@@ -50,6 +47,7 @@ def window_reverse(windows, window_size, H, W):
     x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -1)
     x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
     return x
+
 
 class SwinTransformerBlock(nn.Module):
     r""" Swin Transformer Block.
@@ -213,7 +211,6 @@ class SwinTransformerBlock(nn.Module):
     def calc_sampled_param_num(self):
         # all submodules are calculated in their respective classes
         return 0
-
 
 
 class BasicLayer(nn.Module):
@@ -464,6 +461,7 @@ class RSTB(nn.Module):
         flops += self.patch_unembed.flops()
 
         return flops
+
     def calc_sampled_param_num(self):
         # all submodules are calculated in their respective
         logger.debug("RSTB block")
@@ -471,14 +469,13 @@ class RSTB(nn.Module):
             weight = self.conv_sample_weight.numel()
         else:
             weight = 0
-        
+
         if self.conv_sample_bias is not None:
             bias = self.conv_sample_bias.numel()
         else:
             bias = 0
 
         return weight + bias
-
 
 
 class SwinIR(nn.Module):
@@ -687,12 +684,12 @@ class SwinIR(nn.Module):
         self.sample_mlp_ratio = config['mlp_ratio']
         self.sample_stl_num = config['stl_num']
         self.sample_num_heads = config['num_heads']
-         
+
         print("rstb_num", self.sample_rstb_num)
         print("embed dim", self.sample_embed_dim)
         print("mlp ration", self.sample_mlp_ratio)
-        print("stl num",self.sample_stl_num)
-        print("num heads",self.sample_num_heads)
+        print("stl num", self.sample_stl_num)
+        print("num heads", self.sample_num_heads)
         self.sample_dropout = calc_dropout(self.drop_rate, self.sample_embed_dim[0], self.embed_dim)
 
         self.patch_embed.set_sample_config(self.sample_embed_dim[0])
@@ -815,21 +812,20 @@ class SwinIR(nn.Module):
 
     def calc_sampled_param_num(self):
         # all submodules are calculated in their respective classes
-        #These conv layers are not wrapped with Conv2DSuper
+        # These conv layers are not wrapped with Conv2DSuper
         return self.conv_sample_weight.numel() + self.conv_sample_bias.numel() \
                + self.conv_after_body_sample_weight.numel() \
                + self.conv_after_body_sample_bias.numel()
-
 
     def get_sampled_params_numel(self, config):
         self.set_sample_config(config)
         numels = []
         for name, module in self.named_modules():
-            #print("name", name)
-            #print("has calc",hasattr(module, 'calc_sampled_param_num'))
+            # print("name", name)
+            # print("has calc",hasattr(module, 'calc_sampled_param_num'))
             if hasattr(module, 'calc_sampled_param_num'):
                 name_splits = name.split('.')
-                if name_splits[0] == 'layers': 
+                if name_splits[0] == 'layers':
                     # E.g. of a relevant module: `layers.3.residual_group.blocks.4.attn`
 
                     # If layer is outside range, skip
@@ -841,7 +837,7 @@ class SwinIR(nn.Module):
                         continue
 
                 params = module.calc_sampled_param_num()
-                #print("name", name, "params",params)
+                # print("name", name, "params",params)
                 numels.append(params)
 
         return sum(numels)

@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 from timm.models.layers import trunc_normal_
+
 from AutoFormer.model.swinIR.module.linear_super import LinearSuper
+
 
 class WindowAttention(nn.Module):
     r""" Window based multi-head self attention (W-MSA) module with relative position bias.
@@ -67,8 +69,8 @@ class WindowAttention(nn.Module):
 
     def calc_sampled_param_num(self):
 
-        #self.qkv and self.proj is calculated in Linear super module
-        if self.sample_relative_position_bias_table is not  None:
+        # self.qkv and self.proj is calculated in Linear super module
+        if self.sample_relative_position_bias_table is not None:
             return self.sample_relative_position_bias_table.numel()
         return 0
 

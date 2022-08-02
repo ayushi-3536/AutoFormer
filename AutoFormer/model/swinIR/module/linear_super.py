@@ -1,7 +1,7 @@
-import torch
+import torch.nn as nn
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
+
 
 class LinearSuper(nn.Linear):
     def __init__(self, super_in_dim, super_out_dim, bias=True, uniform_=None, non_linear='linear', scale=False):
@@ -44,7 +44,7 @@ class LinearSuper(nn.Linear):
     def _sample_parameters(self):
         self.samples['weight'] = sample_weight(self.weight, self.sample_in_dim, self.sample_out_dim)
         self.samples['bias'] = self.bias
-        self.sample_scale = self.super_out_dim/self.sample_out_dim
+        self.sample_scale = self.super_out_dim / self.sample_out_dim
         if self.bias is not None:
             self.samples['bias'] = sample_bias(self.bias, self.sample_out_dim)
         return self.samples
@@ -63,8 +63,9 @@ class LinearSuper(nn.Linear):
 
     def get_complexity(self, sequence_length):
         total_flops = 0
-        total_flops += sequence_length *  np.prod(self.samples['weight'].size())
+        total_flops += sequence_length * np.prod(self.samples['weight'].size())
         return total_flops
+
 
 def sample_weight(weight, sample_in_dim, sample_out_dim):
     sample_weight = weight[:, :sample_in_dim]

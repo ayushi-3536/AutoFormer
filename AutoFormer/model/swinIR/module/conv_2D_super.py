@@ -1,16 +1,18 @@
-import torch.nn as nn
 from typing import Union, Tuple
+
+import torch.nn as nn
 import torch.nn.functional as F
+
 
 class Conv2DSuper(nn.Module):
     def __init__(self,
-                in_channels: int, out_channels: int,
-                kernel_size: int,
-                stride: Union[int, Tuple],
-                padding: Union[int, Tuple, str],
-                *args,
-                **kwargs
-                ):
+                 in_channels: int, out_channels: int,
+                 kernel_size: int,
+                 stride: Union[int, Tuple],
+                 padding: Union[int, Tuple, str],
+                 *args,
+                 **kwargs
+                 ):
         super().__init__()
         self.conv = nn.Conv2d(
             in_channels,
@@ -27,7 +29,8 @@ class Conv2DSuper(nn.Module):
         # Create a mask to multiply with the weight before passing on to F.conv2d.
         # So instead of sampling a smaller weight, we keep its size (kernel_size-wise) but set outer edges to 0.
         if padding < kernel_size // 2:
-            raise ValueError(f"Padding {padding} too small for kernel_size: {kernel_size}. Won't allow decreasing further.")
+            raise ValueError(
+                f"Padding {padding} too small for kernel_size: {kernel_size}. Won't allow decreasing further.")
 
         self.super_in_channels = in_channels
         self.super_out_channels = out_channels
@@ -46,9 +49,9 @@ class Conv2DSuper(nn.Module):
         k_i = (self.super_kernel_size - self.sample_kernel_size) // 2
 
         self.conv_sample_weight = self.conv.weight[:self.sample_out_channels,
-                                                   :self.sample_in_channels,
-                                                   k_i: k_i + self.sample_kernel_size,
-                                                   k_i: k_i + self.sample_kernel_size]
+                                  :self.sample_in_channels,
+                                  k_i: k_i + self.sample_kernel_size,
+                                  k_i: k_i + self.sample_kernel_size]
         self.conv_sample_bias = self.conv.bias[:self.sample_out_channels, ...]
 
         self.sample_padding = self.super_padding - k_i
@@ -62,4 +65,3 @@ class Conv2DSuper(nn.Module):
 
     def calc_sampled_param_num(self):
         return self.conv_sample_weight.numel() + self.conv_sample_bias.numel()
-
