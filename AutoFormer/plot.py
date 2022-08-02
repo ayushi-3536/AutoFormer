@@ -31,23 +31,23 @@ if __name__ == "__main__":
     train_loss_min = [min(train_loss[:i + 1]) for i in range(len(train_loss))]
     print("train loss min", train_loss_min)
 
-    l = [i for i in range(len(train_loss))]
+    len = [i for i in range(len(train_loss))]
     plt.title("train loss vs epochs")
     plt.xlabel('Epochs')
     plt.ylabel('Train Loss')
-    plt.plot(l, train_loss_min)
+    plt.plot(len, train_loss_min)
 
     plt.tight_layout()
-    plt.savefig(f'train_loss_vs_epoch_milestone1.pdf', dpi=450)
+    plt.savefig('train_loss_vs_epoch_milestone1.pdf', dpi=450)
     plt.show()
 
     plt.title("test accuracy vs epochs")
     plt.xlabel('Epochs')
     plt.ylabel('Test accuracy')
-    plt.plot(l, test_acc_max)
+    plt.plot(len, test_acc_max)
 
     plt.tight_layout()
-    plt.savefig(f'test_acc1_vs_epoch_milestone1.pdf', dpi=450)
+    plt.savefig('test_acc1_vs_epoch_milestone1.pdf', dpi=450)
     plt.show()
 
     data_df = pd.read_json('C:\\Users\\ayush\\projects\\Autoformers\\AutoFormer\\cifar100_search.json', lines=True)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     plt.scatter(epochs + 1, test_acc1, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(f'test_acc_for_top_50_every_epoch.pdf', dpi=450)
+    plt.savefig('test_acc_for_top_50_every_epoch.pdf', dpi=450)
     plt.show()
 
     plt.xlabel('Params')
@@ -74,5 +74,5 @@ if __name__ == "__main__":
     plt.scatter(num_params, test_acc1, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(f'acc_vs_params_for_highperf_cand.pdf', dpi=450)
+    plt.savefig('acc_vs_params_for_highperf_cand.pdf', dpi=450)
     plt.show()
