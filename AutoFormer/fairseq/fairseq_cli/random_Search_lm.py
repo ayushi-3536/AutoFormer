@@ -1,39 +1,22 @@
+import json
+import os
 import random
 import sys
-import numpy as np
 import time
+
 import torch
-import torch.backends.cudnn as cudnn
-from pathlib import Path
-from fairseq import models
-from omegaconf import OmegaConf
-# from fairseq_cli.search_validate import Search_Validate
-# from AutoFormer.lib import utils
-import argparse
-import os
-from fairseq.criterions.masked_lm import MaskedLmConfig
-from fairseq.data.dictionary import Dictionary
-from fairseq.tasks.masked_lm import MaskedLMTask
-import yaml
 from loguru import logger
-# from AutoFormer.lib.config import cfg, update_config_from_file
-import json
 
 logger.add(sys.stdout, level='DEBUG')
 
 
 def decode_cand_tuple(cand_tuple):
-    # logger.debug(f'cand tuple:{cand_tuple}')
-
     # Example: (256,256,256,256, 1024,1024,1024,1024,8,4,8,4, 4)
     depth = cand_tuple[-1]
     return list(cand_tuple[0:depth]), \
            list(cand_tuple[depth: 2 * depth]), \
            list(cand_tuple[2 * depth: 3 * depth]), \
            cand_tuple[-1]
-
-
-# print (decode_cand_tuple(tuple((256,256,256,256, 1024,1024,1024,1024,8,4,8,4, 4))))
 
 
 class RandomSearcher(object):
@@ -80,7 +63,6 @@ class RandomSearcher(object):
         self.memory = info['memory']
         self.candidates = info['candidates']
         self.vis_dict = info['vis_dict']
-        # logger.debug(f'vis dict:{self.vis_dict}')
         self.keep_top_k = info['keep_top_k']
         self.epoch = info['epoch']
 
@@ -93,7 +75,6 @@ class RandomSearcher(object):
             self.vis_dict[cand] = {}
         info = self.vis_dict[cand]
         if 'visited' in info:
-            print('visited already')
             return False
         num_heads, embed_dim, ff_embed_dim, depth = decode_cand_tuple(cand)
 
@@ -126,12 +107,8 @@ class RandomSearcher(object):
 
         logger.debug(f"cand:{cand},params:{info['params']}")
         eval_stats = self.validator.evaluate(config=sampled_config)
-        # eval_stats = (self.val_loader, self.model, self.model.module, self.device, amp=self.args.amp, mode='retrain',
-        #               retrain_config=sampled_config)
         logger.debug(f'eval stats:{eval_stats}')
         info['ppl'] = eval_stats['ppl']
-        # info['test_acc'] = test_stats['acc1']
-
         info['visited'] = True
 
         return True
@@ -147,8 +124,6 @@ class RandomSearcher(object):
     def stack_random_cand(self, random_func, *, batchsize=10):
         while True:
             cands = [random_func() for _ in range(batchsize)]
-            # logger.debug(f'random cand generated from mutation:{cands}')
-            # logger.debug(f'vis dict:{self.vis_dict}')
             for cand in cands:
                 if cand not in self.vis_dict:
                     self.vis_dict[cand] = {}
@@ -187,22 +162,16 @@ class RandomSearcher(object):
     def get_random(self, num):
         logger.debug('random select ........')
         cand_iter = self.stack_random_cand(self.get_random_cand)
-        print("len of can",len(self.candidates))
-        print("pop num desired",num)
 
         while len(self.candidates) < num:
-            print("l of c",len(self.candidates))
             cand = next(cand_iter)
             if not self.is_legal(cand):
-                print("cand not leag")
                 continue
-            print("cand legal appending")
             self.candidates.append(cand)
             logger.debug(f'random {len(self.candidates)}/{num}')
         logger.debug(f'random_num = {len(self.candidates)}')
 
     def search(self):
-        print("inside evolutionary search")
         logger.debug(f'population_num = {self.population_num}'
                      f' select_num = {self.select_num}'
                      f' max_epochs = {self.max_epochs}')
@@ -236,7 +205,7 @@ class RandomSearcher(object):
                     f.write("\n")
                     f.close()
             self.top_accuracies.append(tmp_accuracy)
-            self.candidates=[]
+            self.candidates = []
             self.get_random(self.population_num)
 
             self.epoch += 1
@@ -246,7 +215,6 @@ class RandomSearcher(object):
 
 def main(args, model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch_random'):
     t = time.time()
-    print("call random search")
     searcher = RandomSearcher(args, model, search_validate, choices, output_dir)
 
     searcher.search()

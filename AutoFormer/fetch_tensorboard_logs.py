@@ -2,12 +2,16 @@ import os
 import tensorflow as tf
 from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
+
 print(tf.__version__)
 import matplotlib.pyplot as plt
 import tensorflow.compat.v1 as tf
+
 tf.disable_v2_behavior()
 import os
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 
 class Evaluation:
 
@@ -35,11 +39,10 @@ class Evaluation:
     def close_session(self):
         self.summary_writer.close()
 
+
 def read_logs(file):
-
-
-    metric = ['loss','ppl']
-    plot_data = {'loss': [],'ppl':[]}
+    metric = ['loss', 'ppl']
+    plot_data = {'loss': [], 'ppl': []}
 
     logs = tf.train.summary_iterator(file)
     print(logs)
@@ -50,7 +53,7 @@ def read_logs(file):
         if idx == 0 or idx == 1:
             continue
         if values[0].tag in metric:
-            #print("values", values, "val tag", values[0].tag)
+            # print("values", values, "val tag", values[0].tag)
             plot_data[values[0].tag].append(values[0].simple_value)
     print(plot_data)
     plt.plot(plot_data['loss'], label="loss")
