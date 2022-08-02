@@ -687,7 +687,12 @@ class SwinIR(nn.Module):
         self.sample_mlp_ratio = config['mlp_ratio']
         self.sample_stl_num = config['stl_num']
         self.sample_num_heads = config['num_heads']
-
+         
+        print("rstb_num", self.sample_rstb_num)
+        print("embed dim", self.sample_embed_dim)
+        print("mlp ration", self.sample_mlp_ratio)
+        print("stl num",self.sample_stl_num)
+        print("num heads",self.sample_num_heads)
         self.sample_dropout = calc_dropout(self.drop_rate, self.sample_embed_dim[0], self.embed_dim)
 
         self.patch_embed.set_sample_config(self.sample_embed_dim[0])

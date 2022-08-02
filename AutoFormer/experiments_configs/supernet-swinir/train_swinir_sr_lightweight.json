@@ -29,8 +29,8 @@
     "test": {
       "name": "test_dataset"           // just name
       , "dataset_type": "sr"         // "dncnn" | "dnpatch" | "fdncnn" | "ffdnet" | "sr" | "srmd" | "dpsr" | "plain" | "plainpatch" | "jpeg"
-      , "dataroot_H": "AutoFormer/AutoFormer/testsets/Set14/GTmod12"// path of H training dataset. DIV2K (800 training images)
-      , "dataroot_L": "AutoFormer/AutoFormer/testsets/Set14/LRbicx2"       // path of L training dataset
+      , "dataroot_H": "/work/dlclarge1/sharmaa-dltrans/AutoFormer/AutoFormer/testsets/Set14/GTmod12"// path of H training dataset. DIV2K (800 training images)
+      , "dataroot_L": "/work/dlclarge1/sharmaa-dltrans/AutoFormer/AutoFormer/testsets/Set14/LRbicx4"       // path of L training dataset
       , "H_size": 96
       , "dataloader_shuffle": true
       , "dataloader_num_workers": 8
