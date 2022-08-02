@@ -34,6 +34,9 @@ class LearnedPositionalEmbedding(nn.Embedding):
     def set_sample_config(self, sample_embed_dim):
         self.sample_embed_dim = sample_embed_dim
 
+    def calc_sampled_param_num(self):
+        return self.weight[...,:self.sample_embed_dim].numel()
+
     def forward(
         self,
         input: Tensor,

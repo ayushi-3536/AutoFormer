@@ -236,6 +236,7 @@ def do_setup(package_data):
                 "fairseq-score = fairseq_cli.score:cli_main",
                 "fairseq-train = fairseq_cli.train:cli_main",
                 "fairseq-validate = fairseq_cli.validate:cli_main",
+                "fairseq-search-validate = fairseq_cli.search_validate:cli_main",
             ],
         },
         cmdclass=cmdclass,
