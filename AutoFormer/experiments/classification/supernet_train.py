@@ -1,29 +1,32 @@
 import argparse
 import datetime
-import numpy as np
+import json
+import sys
 import time
+from pathlib import Path
+
+import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
-import json
 import yaml
-import sys
 from loguru import logger
-from pathlib import Path
 from timm.data import Mixup
-from timm.models import create_model
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
-from timm.scheduler import create_scheduler
+from timm.models import create_model
 from timm.optim import create_optimizer
+from timm.scheduler import create_scheduler
 from timm.utils import NativeScaler
-from AutoFormer.lib.datasets import build_dataset
+
 from AutoFormer.experiments.classification.supernet_engine import train_one_epoch, evaluate
-from AutoFormer.lib.samplers import RASampler
 from AutoFormer.lib import utils
 from AutoFormer.lib.config import cfg, update_config_from_file
+from AutoFormer.lib.datasets import build_dataset
+from AutoFormer.lib.samplers import RASampler
 from AutoFormer.model.vision_transformer.supernet_transformer import Vision_TransformerSuper
 
-
 logger.add(sys.stdout, level='DEBUG')
+
+
 def get_args_parser():
     parser = argparse.ArgumentParser('AutoFormer training and evaluation script', add_help=False)
     parser.add_argument('--batch-size', default=64, type=int)
@@ -39,7 +42,8 @@ def get_args_parser():
     parser.add_argument('--relative_position', action='store_true')
     parser.add_argument('--gp', action='store_true')
     parser.add_argument('--change_qkv', action='store_true')
-    parser.add_argument('--max_relative_position', type=int, default=14, help= 'max distance in relative position embedding')
+    parser.add_argument('--max_relative_position', type=int, default=14,
+                        help='max distance in relative position embedding')
 
     # Model parameters
     parser.add_argument('--model', default='', type=str, metavar='MODEL',
@@ -120,10 +124,7 @@ def get_args_parser():
 
     parser.add_argument('--repeated-aug', action='store_true')
     parser.add_argument('--no-repeated-aug', action='store_false', dest='repeated_aug')
-
-
     parser.set_defaults(repeated_aug=True)
-
     # * Random Erase params
     parser.add_argument('--reprob', type=float, default=0.25, metavar='PCT',
                         help='Random erase prob (default: 0.25)')
@@ -183,11 +184,10 @@ def get_args_parser():
     parser.add_argument('--no-amp', action='store_false', dest='amp')
     parser.set_defaults(amp=True)
 
-
     return parser
 
-def main(args):
 
+def main(args):
     utils.init_distributed_mode(args)
     update_config_from_file(args.cfg)
 
@@ -258,7 +258,7 @@ def main(args):
     model = Vision_TransformerSuper(img_size=args.input_size,
                                     patch_size=args.patch_size,
                                     embed_dim=cfg.SUPERNET.EMBED_DIM, depth=cfg.SUPERNET.DEPTH,
-                                    num_heads=cfg.SUPERNET.NUM_HEADS,mlp_ratio=cfg.SUPERNET.MLP_RATIO,
+                                    num_heads=cfg.SUPERNET.NUM_HEADS, mlp_ratio=cfg.SUPERNET.MLP_RATIO,
                                     qkv_bias=True, drop_rate=args.drop,
                                     drop_path_rate=args.drop_path,
                                     gp=args.gp,
@@ -268,7 +268,7 @@ def main(args):
                                     change_qkv=args.change_qkv, abs_pos=not args.no_abs_pos)
 
     choices = {'num_heads': cfg.SEARCH_SPACE.NUM_HEADS, 'mlp_ratio': cfg.SEARCH_SPACE.MLP_RATIO,
-               'embed_dim': cfg.SEARCH_SPACE.EMBED_DIM , 'depth': cfg.SEARCH_SPACE.DEPTH}
+               'embed_dim': cfg.SEARCH_SPACE.EMBED_DIM, 'depth': cfg.SEARCH_SPACE.DEPTH}
 
     model.to(device)
     if args.teacher_model:
@@ -334,8 +334,8 @@ def main(args):
 
     retrain_config = None
     if args.mode == 'retrain' and "RETRAIN" in cfg:
-        retrain_config = {'layer_num': cfg.RETRAIN.DEPTH, 'embed_dim': [cfg.RETRAIN.EMBED_DIM]*cfg.RETRAIN.DEPTH,
-                          'num_heads': cfg.RETRAIN.NUM_HEADS,'mlp_ratio': cfg.RETRAIN.MLP_RATIO}
+        retrain_config = {'layer_num': cfg.RETRAIN.DEPTH, 'embed_dim': [cfg.RETRAIN.EMBED_DIM] * cfg.RETRAIN.DEPTH,
+                          'num_heads': cfg.RETRAIN.NUM_HEADS, 'mlp_ratio': cfg.RETRAIN.MLP_RATIO}
     if args.eval:
         test_stats = evaluate(data_loader_val, model, device, mode=args.mode, retrain_config=retrain_config)
         logger.debug(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
@@ -355,7 +355,7 @@ def main(args):
             args.clip_grad, model_ema, mixup_fn,
             amp=args.amp, teacher_model=teacher_model,
             teach_loss=teacher_loss,
-            choices=choices, mode = args.mode, retrain_config=retrain_config,
+            choices=choices, mode=args.mode, retrain_config=retrain_config,
         )
 
         lr_scheduler.step(epoch)
@@ -372,7 +372,8 @@ def main(args):
                     'args': args,
                 }, checkpoint_path)
 
-        test_stats = evaluate(data_loader_val, model, device, amp=args.amp, choices=choices, mode = args.mode, retrain_config=retrain_config)
+        test_stats = evaluate(data_loader_val, model, device, amp=args.amp, choices=choices, mode=args.mode,
+                              retrain_config=retrain_config)
         logger.debug(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
         max_accuracy = max(max_accuracy, test_stats["acc1"])
         logger.debug(f'Max accuracy: {max_accuracy:.2f}%')

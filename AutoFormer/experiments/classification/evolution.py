@@ -164,7 +164,6 @@ class EvolutionSearcher(object):
         assert k in self.keep_top_k
         logger.debug('mutation ......')
         res = []
-        iter = 0
         max_iters = mutation_num * 10
 
         def random_func():
@@ -222,7 +221,6 @@ class EvolutionSearcher(object):
         assert k in self.keep_top_k
         logger.debug('crossover ......')
         res = []
-        iter = 0
         max_iters = 10 * crossover_num
 
         def random_func():
@@ -250,7 +248,8 @@ class EvolutionSearcher(object):
 
     def search(self):
         logger.debug(
-            'population_num = {} select_num = {} mutation_num = {} crossover_num = {} random_num = {} max_epochs = {}'.format(
+            'population_num = {} select_num = {} mutation_num = {} crossover_num = {} '
+            'random_num = {} max_epochs = {}'.format(
                 self.population_num, self.select_num, self.mutation_num, self.crossover_num,
                 self.population_num - self.mutation_num - self.crossover_num, self.max_epochs))
 
@@ -532,7 +531,7 @@ def main(args):
         pin_memory=args.pin_mem, drop_last=False
     )
 
-    logger.debug(f"Creating SuperVisionTransformer")
+    logger.debug("Creating SuperVisionTransformer")
     logger.debug(cfg)
     model = Vision_TransformerSuper(img_size=args.input_size,
                                     patch_size=args.patch_size,
@@ -553,7 +552,7 @@ def main(args):
         model_without_ddp = model.module
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    logger.debug('number of params:{n_parameters}')
+    logger.debug(f'number of params:{n_parameters}')
     if args.resume:
         if args.resume.startswith('https'):
             checkpoint = torch.hub.load_state_dict_from_url(

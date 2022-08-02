@@ -432,7 +432,7 @@ def main(args):
         pin_memory=args.pin_mem, drop_last=False
     )
 
-    logger.debug(f"Creating SuperVisionTransformer")
+    logger.debug("Creating SuperVisionTransformer")
     logger.debug(cfg)
     model = Vision_TransformerSuper(img_size=args.input_size,
                                     patch_size=args.patch_size,
