@@ -801,10 +801,6 @@ class Trainer(object):
             config = sample_config(self.cfg.SEARCH_SPACE)
         elif(self.cfg.common.train_mode == 'retrain'):
             config = self.cfg.RETRAIN
-            print(config.DEPTH)
-            print(type(config.DEPTH))
-            print("changed once")
-            print("trype of depth",type(config.DEPTH))
             if(type(config['DEPTH']) is not int):
                 config['DEPTH'] = random.choice(config['DEPTH'])
         else:

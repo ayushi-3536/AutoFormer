@@ -33,7 +33,7 @@ lr_scheduler:
 optimization:
   clip_norm: 0
   lr: [0.0001]
-  max_update: 150000
+  max_update: 125000
   update_freq: [8]
 
 model:

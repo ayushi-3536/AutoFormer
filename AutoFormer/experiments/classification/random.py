@@ -5,55 +5,38 @@ import time
 import torch
 import torch.backends.cudnn as cudnn
 from pathlib import Path
-from fairseq import models
-from omegaconf import OmegaConf
-#from fairseq_cli.search_validate import Search_Validate
-#from AutoFormer.lib import utils
+from loguru import logger
+from AutoFormer.lib.datasets import build_dataset
+from AutoFormer.lib import utils
+from AutoFormer.experiments.classification.supernet_engine import evaluate
+from AutoFormer.model.vision_transformer.supernet_transformer import Vision_TransformerSuper
 import argparse
 import os
-from fairseq.criterions.masked_lm import MaskedLmConfig
-from fairseq.data.dictionary import Dictionary
-from fairseq.tasks.masked_lm import MaskedLMTask
 import yaml
-from loguru import logger
-#from AutoFormer.lib.config import cfg, update_config_from_file
+from AutoFormer.lib.config import cfg, update_config_from_file
 import json
-
 logger.add(sys.stdout, level='DEBUG')
 
-
 def decode_cand_tuple(cand_tuple):
-    #logger.debug(f'cand tuple:{cand_tuple}')
+    depth = cand_tuple[0]
+    return depth, list(cand_tuple[1:depth+1]), list(cand_tuple[depth + 1: 2 * depth + 1]), cand_tuple[-1]
 
-    # Example: (256,256,256,256, 1024,1024,1024,1024,8,4,8,4, 4)
-    depth = cand_tuple[-1]
-    return list(cand_tuple[0:depth]), \
-           list(cand_tuple[depth: 2 * depth]), \
-           list(cand_tuple[2 * depth: 3 * depth]), \
-           cand_tuple[-1]
+class RandomSearcher(object):
 
-
-# print (decode_cand_tuple(tuple((256,256,256,256, 1024,1024,1024,1024,8,4,8,4, 4))))
-
-
-class EvolutionSearcher(object):
-
-    def __init__(self, args, model, validator, choices, output_dir):
-        #self.device = device
+    def __init__(self, args, device, model, model_without_ddp, choices, val_loader, test_loader, output_dir):
+        self.device = device
         self.model = model
-        self.validator = validator
+        self.model_without_ddp = model_without_ddp
         self.args = args
         self.max_epochs = args.max_epochs
         self.select_num = args.select_num
         self.population_num = args.population_num
-        self.m_prob = args.m_prob
-        self.crossover_num = args.crossover_num
-        self.mutation_num = args.mutation_num
+
         self.parameters_limits = args.param_limits
         self.min_parameters_limits = args.min_param_limits
-        #self.val_loader = val_loader
+        self.val_loader = val_loader
+        self.test_loader = test_loader
         self.output_dir = output_dir
-        self.s_prob = args.s_prob
         self.memory = []
         self.vis_dict = {}
         self.keep_top_k = {self.select_num: [], 50: []}
@@ -84,7 +67,6 @@ class EvolutionSearcher(object):
         self.memory = info['memory']
         self.candidates = info['candidates']
         self.vis_dict = info['vis_dict']
-        #logger.debug(f'vis dict:{self.vis_dict}')
         self.keep_top_k = info['keep_top_k']
         self.epoch = info['epoch']
 
@@ -97,29 +79,15 @@ class EvolutionSearcher(object):
             self.vis_dict[cand] = {}
         info = self.vis_dict[cand]
         if 'visited' in info:
-            print('visited already')
             return False
-        num_heads, embed_dim, ff_embed_dim, depth = decode_cand_tuple(cand)
-
-        logger.debug(
-            f'embed_dim:{embed_dim}, ffn_embed_dim"{ff_embed_dim},'
-            f' num_heads:{num_heads}, depth:{depth}')
+        depth, mlp_ratio, num_heads, embed_dim = decode_cand_tuple(cand)
         sampled_config = {}
-        sampled_config['depth'] = depth
+        sampled_config['layer_num'] = depth
+        sampled_config['mlp_ratio'] = mlp_ratio
         sampled_config['num_heads'] = num_heads
-        sampled_config['embed_dim'] = embed_dim
-        sampled_config['ffn_embed_dim'] = ff_embed_dim
-
-        logger.debug(f'sampled_config:{sampled_config}')
-
-        self.model.set_sample_config(sample_num_heads=num_heads,
-                                    sample_embed_dim=embed_dim,
-                                    sample_ffn_embed_dim=ff_embed_dim,
-                                    sample_depth=depth)
-
-
-        n_parameters = self.model.get_sampled_params_numel()
-        info['params'] = n_parameters / 10. ** 6
+        sampled_config['embed_dim'] = [embed_dim]*depth
+        n_parameters = self.model_without_ddp.get_sampled_params_numel(sampled_config)
+        info['params'] =  n_parameters / 10.**6
 
         if info['params'] > self.parameters_limits:
             logger.debug('parameters limit exceed')
@@ -129,13 +97,12 @@ class EvolutionSearcher(object):
             logger.debug('under minimum parameters limit')
             return False
 
-        logger.debug(f"cand:{cand},params:{info['params']}")
-        eval_stats = self.validator.evaluate(config=sampled_config)
-        # eval_stats = (self.val_loader, self.model, self.model.module, self.device, amp=self.args.amp, mode='retrain',
-        #               retrain_config=sampled_config)
-        logger.debug(f'eval stats:{eval_stats}')
-        info['ppl'] = eval_stats['ppl']
-        # info['test_acc'] = test_stats['acc1']
+        logger.debug(f"rank:{utils.get_rank()}, {cand}, {info['params']}")
+        eval_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain', retrain_config=sampled_config)
+        test_stats = evaluate(self.test_loader, self.model, self.device, amp=self.args.amp, mode='retrain', retrain_config=sampled_config)
+
+        info['acc'] = eval_stats['acc1']
+        info['test_acc'] = test_stats['acc1']
 
         info['visited'] = True
 
@@ -152,8 +119,6 @@ class EvolutionSearcher(object):
     def stack_random_cand(self, random_func, *, batchsize=10):
         while True:
             cands = [random_func() for _ in range(batchsize)]
-            #logger.debug(f'random cand generated from mutation:{cands}')
-            #logger.debug(f'vis dict:{self.vis_dict}')
             for cand in cands:
                 if cand not in self.vis_dict:
                     self.vis_dict[cand] = {}
@@ -162,31 +127,16 @@ class EvolutionSearcher(object):
                 yield cand
 
     def get_random_cand(self):
-        '''
-        Generate random configuration:
-        Example: 'embed_dim': [256,256,256,256], ffn_embed_dim: [1024,1024,1024,1024],'num_heads': [8,4,8,4], 'depth': 4
-        #
-        Returns:
-            Tuple: Sampled configuration
-        '''
 
         cand_tuple = list()
-        dimensions = ['num_heads']
-
+        dimensions = ['mlp_ratio', 'num_heads']
         depth = random.choice(self.choices['depth'])
-
-        for i in range(depth):
-            cand_tuple.append(random.choice(self.choices['num_heads']))
-
-        embed_dim = random.choice(self.choices['embed_dim'])
-        for i in range(depth):
-            cand_tuple.append(embed_dim)
-
-        for i in range(depth):
-            cand_tuple.append(random.choice(self.choices['ffn_embed_dim']))
-
         cand_tuple.append(depth)
-        logger.debug(f'cand tuple:{cand_tuple}')
+        for dimension in dimensions:
+            for i in range(depth):
+                cand_tuple.append(random.choice(self.choices[dimension]))
+
+        cand_tuple.append(random.choice(self.choices['embed_dim']))
         return tuple(cand_tuple)
 
     def get_random(self, num):
@@ -197,183 +147,48 @@ class EvolutionSearcher(object):
             if not self.is_legal(cand):
                 continue
             self.candidates.append(cand)
-            logger.debug(f'random {len(self.candidates)}/{num}')
-        logger.debug(f'random_num = {len(self.candidates)}')
+            logger.debug('random {}/{}'.format(len(self.candidates), num))
+        logger.debug('random_num = {}'.format(len(self.candidates)))
 
-    def get_mutation(self, k, mutation_num, m_prob, s_prob):
-        assert k in self.keep_top_k
-        logger.debug('mutation ......')
-        res = []
-        iter = 0
-        max_iters = mutation_num * 10
-
-        def random_func():
-            cand = list(random.choice(self.keep_top_k[k]))
-            num_heads, embed_dim, ff_embed_dim, depth= decode_cand_tuple(cand)
-            print('candidate to be muattaed',cand)
-            print('head',num_heads,'ed',embed_dim,'ffed',ff_embed_dim,'depth:',depth)
-            random_s = random.random()
-
-            # depth
-            if random_s < s_prob:
-                print('sampling depth')
-                new_depth = random.choice(self.choices['depth'])
-                print('new depth',new_depth)
-                if new_depth > depth:
-                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_depth - depth)]
-                    logger.debug(f'embed dim one:{embed_dim[-1]}, embed dim :{embed_dim}')
-                    embed_dim = embed_dim + [embed_dim[-1] for _ in range(new_depth - depth)]
-                    logger.debug(f'embed dim after:{embed_dim}')
-                    ff_embed_dim = ff_embed_dim + [random.choice(self.choices['ffn_embed_dim']) for _ in range(new_depth - depth)]
-                    logger.debug(f'embed dim after:{ff_embed_dim}')
-                else:
-                    num_heads = num_heads[:new_depth]
-                    embed_dim = embed_dim[:new_depth]
-                    ff_embed_dim = ff_embed_dim[:new_depth]
-                    print('if depth> new depth')
-                    print('heads', num_heads, 'ed', 'ffed', ff_embed_dim)
-                depth=new_depth
-
-
-            # num_heads
-            for i in range(depth):
-                random_s = random.random()
-                if random_s < m_prob:
-                    print('mutating heads')
-                    num_heads[i] = random.choice(self.choices['num_heads'])
-
-            # embed_dim
-            random_s = random.random()
-            if random_s < s_prob:
-                logger.debug(f'mutating embed dim:{embed_dim}')
-                sampled_embed_dim = random.choice(self.choices['embed_dim'])
-                logger.debug(f'sampled config dim:{sampled_embed_dim}')
-                for i in range(depth):
-                    embed_dim[i] = sampled_embed_dim
-                    logger.debug(f'embed dim while sampling:{embed_dim}')
-
-            for i in range(depth):
-                random_s = random.random()
-                if random_s < m_prob:
-                    print('ffn embed dim')
-                    ff_embed_dim[i] = random.choice(self.choices['ffn_embed_dim'])
-
-            result_cand = num_heads + embed_dim + ff_embed_dim + [depth]
-
-            logger.debug(f'mutated cand:{result_cand}')
-            return tuple(result_cand)
-        print('generating mutation candidates')
-        cand_iter = self.stack_random_cand(random_func)
-        while len(res) < mutation_num and max_iters > 0:
-            max_iters -= 1
-            cand = next(cand_iter)
-
-            if not self.is_legal(cand):
-                continue
-            res.append(cand)
-            logger.debug(f'mutation {len(res)}/{mutation_num}')
-
-        logger.debug(f'mutation_num = {len(res)}')
-        return res
-
-    def get_crossover(self, k, crossover_num):
-        assert k in self.keep_top_k
-        logger.debug('crossover ......')
-        print("crossover")
-        res = []
-        iter = 0
-        max_iters = 10 * crossover_num
-
-        def random_func():
-
-            p1 = random.choice(self.keep_top_k[k])
-            p2 = random.choice(self.keep_top_k[k])
-            max_iters_tmp = 50
-            while len(p1) != len(p2) and max_iters_tmp > 0:
-                max_iters_tmp -= 1
-                p1 = random.choice(self.keep_top_k[k])
-                p2 = random.choice(self.keep_top_k[k])
-            logger.debug(f"cand p1:{p1}")
-            logger.debug(f"cand p2:{p2}")
-            crossover_cfg = []
-            depth = p1[-1]
-
-            #embed dim and ffn_embed dim has to be same for every layer, crossover just once and propogate the same
-            embed_dim_index = list(range(depth, 2*depth))
-            print("embedding dim index",embed_dim_index)
-            logger.debug(f'embed dim index:{embed_dim_index}')
-            for idx, (i, j) in enumerate(zip(p1, p2)):
-                if idx not in embed_dim_index:
-                    crossover_cfg.append(random.choice([i, j]))
-                elif idx in embed_dim_index:
-                    logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx + 1}')
-                    if len(crossover_cfg) > idx:
-                        logger.debug('index bigger than len of sampled cfg')
-                        continue
-                    embed_dim = random.choice([i, j])
-                    logger.debug(f'sampled embed_dim:{embed_dim}')
-                    for embed_per_block in range(len(embed_dim_index)):
-                        crossover_cfg.append(embed_dim)
-                        logger.debug(f'appending same embed dim to cfg list:{crossover_cfg}')
-            logger.debug(f'final cfg list:{tuple(crossover_cfg)}')
-            return tuple(crossover_cfg)
-
-        cand_iter = self.stack_random_cand(random_func)
-        while len(res) < crossover_num and max_iters > 0:
-            max_iters -= 1
-            cand = next(cand_iter)
-            if not self.is_legal(cand):
-                continue
-            res.append(cand)
-            logger.debug(f'crossover {len(res)}/{crossover_num}')
-
-        print('crossover_num = {len(res)}')
-        return res
 
     def search(self):
-        print("inside evolutionary search")
-        logger.debug(f'population_num = {self.population_num}'
-                     f' select_num = {self.select_num}'
-                     f' mutation_num = {self.mutation_num}'
-                     f' crossover_num = {self.crossover_num}'
-                     f' random_num = {self.population_num - self.mutation_num - self.crossover_num}'
-                     f' max_epochs = {self.max_epochs}')
+        logger.debug(
+            'population_num = {} select_num = {} max_epochs = {}'.format(
+                self.population_num, self.select_num, self.max_epochs))
 
         # self.load_checkpoint()
 
         self.get_random(self.population_num)
 
         while self.epoch < self.max_epochs:
-            logger.debug('epoch = {self.epoch}')
+            logger.debug('epoch = {}'.format(self.epoch))
 
             self.memory.append([])
             for cand in self.candidates:
                 self.memory[-1].append(cand)
 
             self.update_top_k(
-                self.candidates, k=self.select_num, key=lambda x: self.vis_dict[x]['ppl'], reverse=False)
+                self.candidates, k=self.select_num, key=lambda x: self.vis_dict[x]['acc'])
             self.update_top_k(
-                self.candidates, k=50, key=lambda x: self.vis_dict[x]['ppl'], reverse=False)
+                self.candidates, k=50, key=lambda x: self.vis_dict[x]['acc'])
 
-            logger.debug(f'epoch = {self.epoch} : top {len(self.keep_top_k[50])} result')
+            logger.debug('epoch = {} : top {} result'.format(
+                self.epoch, len(self.keep_top_k[50])))
             tmp_accuracy = []
             for i, cand in enumerate(self.keep_top_k[50]):
-                logger.debug(f'No.{i + 1} {cand} val ppl = {self.vis_dict[cand]["ppl"]},'
-                             f' params = {self.vis_dict[cand]["params"]}')
-                tmp_accuracy.append(self.vis_dict[cand]['ppl'])
-                with open('roberta_search.json', 'a+')as f:
-                    json.dump({'epoch': self.epoch, 'rank': i + 1, 'ppl': self.vis_dict[cand]['ppl'],
-                               'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
+                logger.debug('No.{} {} Top-1 val acc = {}, Top-1 test acc = {}, params = {}'.format(
+                    i + 1, cand, self.vis_dict[cand]['acc'], self.vis_dict[cand]['test_acc'], self.vis_dict[cand]['params']))
+                tmp_accuracy.append(self.vis_dict[cand]['acc'])
+                
+                with open('cifar100_search_random.json', 'a+')as f:
+                    json.dump({'epoch': self.epoch, 'rank': i+1, 'val_acc_1': self.vis_dict[cand]['acc'],
+                               'test_acc_1': self.vis_dict[cand]['test_acc'], 'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
                     f.write("\n")
-                    f.close()
             self.top_accuracies.append(tmp_accuracy)
 
-            mutation = self.get_mutation(
-                self.select_num, self.mutation_num, self.m_prob, self.s_prob)
-            crossover = self.get_crossover(self.select_num, self.crossover_num)
 
-            self.candidates = mutation + crossover
+            self.candidates = []
 
             self.get_random(self.population_num)
 
@@ -381,25 +196,20 @@ class EvolutionSearcher(object):
 
             self.save_checkpoint()
 
-
 def get_args_parser():
-    parser = argparse.ArgumentParser('search strategy for roberta', add_help=False)
+    parser = argparse.ArgumentParser('DeiT training and evaluation script', add_help=False)
     parser.add_argument('--batch-size', default=64, type=int)
 
     # evolution search parameters
-    parser.add_argument('--max-epochs', type=int, default=5)
-    parser.add_argument('--select-num', type=int, default=10)
+    parser.add_argument('--max-epochs', type=int, default=20)
+    parser.add_argument('--select-num', type=int, default=50)
     parser.add_argument('--population-num', type=int, default=50)
-    parser.add_argument('--m_prob', type=float, default=0.2)
-    parser.add_argument('--s_prob', type=float, default=0.4)
-    parser.add_argument('--crossover-num', type=int, default=25)
-    parser.add_argument('--mutation-num', type=int, default=25)
+    parser.add_argument('--epochs', type=int, default=30)
     parser.add_argument('--param-limits', type=float, default=23)
     parser.add_argument('--min-param-limits', type=float, default=18)
 
     # config file
-    #parser.add_argument('--config-dir',default='.AutoFormer/AutoFormer/fairseq/examples/roberta/config/pretraining',
-    #                    help='experiment configure file name', required=True, type=str)
+    parser.add_argument('--cfg',help='experiment configure file name',required=True,type=str)
 
     # custom parameters
     parser.add_argument('--platform', default='pai', type=str, choices=['itp', 'pai', 'aml'],
@@ -407,8 +217,7 @@ def get_args_parser():
     parser.add_argument('--teacher_model', default='', type=str,
                         help='Name of teacher model to train')
     parser.add_argument('--relative_position', action='store_true')
-    parser.add_argument('--max_relative_position', type=int, default=14,
-                        help='max distance in relative position embedding')
+    parser.add_argument('--max_relative_position', type=int, default=14, help='max distance in relative position embedding')
     parser.add_argument('--scale', action='store_true')
     parser.add_argument('--gp', action='store_true')
     parser.add_argument('--change_qkv', action='store_true')
@@ -521,7 +330,7 @@ def get_args_parser():
     # Dataset parameters
     parser.add_argument('--data-path', default='/datasets01_101/imagenet_full_size/061417/', type=str,
                         help='dataset path')
-    parser.add_argument('--data-set', default='IMNET', choices=['CIFAR', 'IMNET', 'INAT', 'INAT19', 'EVO_IMNET'],
+    parser.add_argument('--data-set', default='IMNET', choices=['CIFAR100', 'IMNET', 'INAT', 'INAT19', 'EVO_IMNET'],
                         type=str, help='Image Net dataset path')
     parser.add_argument('--inat-category', default='name',
                         choices=['kingdom', 'phylum', 'class', 'order', 'supercategory', 'family', 'genus', 'name'],
@@ -555,16 +364,103 @@ def get_args_parser():
 
     return parser
 
+def main(args):
+
+    update_config_from_file(args.cfg)
+    utils.init_distributed_mode(args)
+
+    device = torch.device(args.device)
+
+    logger.debug(args)
+    args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
+    # save config for later experiments_configs
+
+    #self.output_dir = args.output_dir
+    with open(os.path.join(args.output_dir, "../../config.yaml"), 'w') as f:
+        f.write(args_text)
+    # fix the seed for reproducibility
+
+    seed = args.seed + utils.get_rank()
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(args.seed)
+    cudnn.benchmark = True
+
+    args.prefetcher = not args.no_prefetcher
+
+    dataset_val, args.nb_classes = build_dataset(is_train=False, args=args, folder_name="subImageNet")
+    dataset_test, _ = build_dataset(is_train=False, args=args, folder_name="val")
+
+    if args.distributed:
+        num_tasks = utils.get_world_size()
+        global_rank = utils.get_rank()
+        if args.dist_eval:
+            if len(dataset_val) % num_tasks != 0:
+                logger.debug(
+                    'Warning: Enabling distributed evaluation with an eval dataset not divisible by process number. '
+                    'This will slightly alter validation results as extra duplicate entries are added to achieve '
+                    'equal num of samples per-process.')
+            sampler_val = torch.utils.data.DistributedSampler(
+                dataset_val, num_replicas=num_tasks, rank=global_rank, shuffle=False)
+            sampler_test = torch.utils.data.DistributedSampler(
+                dataset_test, num_replicas=num_tasks, rank=global_rank, shuffle=False)
+        else:
+            sampler_val = torch.utils.data.SequentialSampler(dataset_val)
+            sampler_test = torch.utils.data.SequentialSampler(dataset_test)
+    else:
+        sampler_val = torch.utils.data.SequentialSampler(dataset_val)
+        sampler_test = torch.utils.data.SequentialSampler(dataset_test)
+
+    data_loader_test = torch.utils.data.DataLoader(
+        dataset_test, batch_size=int(2 * args.batch_size),
+        sampler=sampler_test, num_workers=args.num_workers,
+        pin_memory=args.pin_mem, drop_last=False
+    )
+
+    data_loader_val = torch.utils.data.DataLoader(
+        dataset_val, batch_size=int(2 * args.batch_size),
+        sampler=sampler_val, num_workers=args.num_workers,
+        pin_memory=args.pin_mem, drop_last=False
+    )
+
+    logger.debug(f"Creating SuperVisionTransformer")
+    logger.debug(cfg)
+    model = Vision_TransformerSuper(img_size=args.input_size,
+                                    patch_size=args.patch_size,
+                                    embed_dim=cfg.SUPERNET.EMBED_DIM, depth=cfg.SUPERNET.DEPTH,
+                                    num_heads=cfg.SUPERNET.NUM_HEADS,mlp_ratio=cfg.SUPERNET.MLP_RATIO,
+                                    qkv_bias=True, drop_rate=args.drop,
+                                    drop_path_rate=args.drop_path,
+                                    gp=args.gp,
+                                    num_classes=args.nb_classes,
+                                    max_relative_position=args.max_relative_position,
+                                    relative_position=args.relative_position,
+                                    change_qkv=args.change_qkv, abs_pos=not args.no_abs_pos)
+
+    model.to(device)
+    model_without_ddp = model
+    if args.distributed:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        model_without_ddp = model.module
 
 
-def main(args,model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
+    n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    logger.debug('number of params:{n_parameters}')
+    if args.resume:
+        if args.resume.startswith('https'):
+            checkpoint = torch.hub.load_state_dict_from_url(
+                args.resume, map_location='cpu', check_hash=True)
+        else:
+            checkpoint = torch.load(args.resume, map_location='cpu')
+        logger.debug("resume from checkpoint: {}".format(args.resume))
+        model_without_ddp.load_state_dict(checkpoint['model'])
 
-
+    choices = {'num_heads': cfg.SEARCH_SPACE.NUM_HEADS, 'mlp_ratio': cfg.SEARCH_SPACE.MLP_RATIO,
+               'embed_dim': cfg.SEARCH_SPACE.EMBED_DIM , 'depth': cfg.SEARCH_SPACE.DEPTH}
 
 
     t = time.time()
-    print("call evolutionary search")
-    searcher = EvolutionSearcher(args, model, search_validate, choices, output_dir)
+    searcher = RandomSearcher(args, device, model, model_without_ddp, choices, data_loader_val, data_loader_test, args.output_dir)
 
     searcher.search()
 
@@ -572,3 +468,9 @@ def main(args,model, search_validate, choices, output_dir='/work/dlclarge1/sharm
         (time.time() - t) / 3600))
 
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('AutoFormer evolution search', parents=[get_args_parser()])
+    args = parser.parse_args()
+    if args.output_dir:
+        Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    main(args)

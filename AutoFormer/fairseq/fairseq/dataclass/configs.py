@@ -301,7 +301,7 @@ class DistributedTrainingConfig(FairseqDataclass):
         },
     )
     distributed_no_spawn: bool = field(
-        default=False,
+        default=True,
         metadata={
             "help": "do not spawn multiple processes even if multiple GPUs are visible"
         },
@@ -313,7 +313,7 @@ class DistributedTrainingConfig(FairseqDataclass):
         default="none", metadata={"help": "communication hook"}
     )
     bucket_cap_mb: int = field(
-        default=25, metadata={"help": "bucket size for reduction"}
+        default=10, metadata={"help": "bucket size for reduction"}
     )
     fix_batches_to_gpus: bool = field(
         default=False,
@@ -471,7 +471,7 @@ class DistributedTrainingConfig(FairseqDataclass):
 @dataclass
 class DatasetConfig(FairseqDataclass):
     num_workers: int = field(
-        default=1, metadata={"help": "how many subprocesses to use for data loading"}
+        default=0, metadata={"help": "how many subprocesses to use for data loading"}
     )
     skip_invalid_size_inputs_valid_test: bool = field(
         default=False,
@@ -1014,7 +1014,7 @@ class GenerationConfig(FairseqDataclass):
 @dataclass
 class CommonEvalConfig(FairseqDataclass):
     path: Optional[str] = field(
-        default='/home/ajesh/Projects/DL-lab/Main-Project/test/AutoFormer/AutoFormer/fairseq/multirun/checkpoint_best.pt',
+        default='multirun/checkpoint_best.pt',
         metadata={"help": "path(s) to model file(s), colon separated"},
     )
     post_process: Optional[str] = field(
@@ -1070,6 +1070,7 @@ class EvalLMConfig(FairseqDataclass):
 
 @dataclass
 class AutoFormerSearchConfig(FairseqDataclass):
+    strategy:str = field(default='evolution')
     max_epochs: int = field(default=20)
     select_num: int = field(default=10)
     population_num: int = field(default=50)
@@ -1078,8 +1079,7 @@ class AutoFormerSearchConfig(FairseqDataclass):
     crossover_num: int = field(default=25)
     mutation_num: int = field(default=25)
     param_limits: int = field(default=64)
-    min_param_limits: int = field(default=18)
-
+    min_param_limits: int = field(default=5)
     resume: str = field(default='')
 
 
