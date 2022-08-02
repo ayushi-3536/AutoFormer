@@ -15,7 +15,7 @@ import time
 from argparse import Namespace
 from itertools import chain
 from typing import Any, Dict, List
-
+import random
 import torch
 from omegaconf import OmegaConf
 
@@ -801,7 +801,8 @@ class Trainer(object):
             config = sample_config(self.cfg.SEARCH_SPACE)
         elif(self.cfg.common.train_mode == 'retrain'):
             config = self.cfg.RETRAIN
-            config.DEPTH = int(config.DEPTH)
+            if(type(config['DEPTH']) is not int):
+                config['DEPTH'] = random.choice(config['DEPTH'])
         else:
             raise Exception(f"Invalid train mode {self.cfg.common.train_mode}")
 

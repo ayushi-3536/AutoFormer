@@ -313,8 +313,8 @@ def main(args):
     retrain_config = None
     if args.mode == 'retrain' and "RETRAIN" in cfg:
         retrain_config = {'num_heads': cfg.RETRAIN.NUM_HEADS, 'mlp_ratio': cfg.RETRAIN.MLP_RATIO,
-               'embed_dim': cfg.RETRAIN.EMBED_DIM, 'rstb_num': cfg.RETRAIN.RSTB_NUM,
-               'stl_num': cfg.RETRAIN.STL_NUM }
+               'embed_dim': cfg.RETRAIN.EMBED_DIM, 'rstb_num': cfg.RETRAIN.RSTB_NUM[-1],
+               'stl_num': cfg.RETRAIN.STL_NUM[-1] }
     if args.eval:
         test_stats = evaluate(data_loader_test, model, device, mode=args.mode, retrain_config=retrain_config,
                               scaling=args.scale)
