@@ -1,16 +1,16 @@
-import os
 import math
+import os
 import random
-import numpy as np
-import torch
-import cv2
-from torchvision.utils import make_grid
 from datetime import datetime
+
+import cv2
 # import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+import numpy as np
+import torch
+from torchvision.utils import make_grid
 
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 '''
 # --------------------------------------------
@@ -21,7 +21,6 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # https://github.com/xinntao/BasicSR
 # --------------------------------------------
 '''
-
 
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP', '.tif']
 
@@ -49,11 +48,11 @@ def surf(Z, cmap='rainbow', figsize=None):
     ax3 = plt.axes(projection='3d')
 
     w, h = Z.shape[:2]
-    xx = np.arange(0,w,1)
-    yy = np.arange(0,h,1)
+    xx = np.arange(0, w, 1)
+    yy = np.arange(0, h, 1)
     X, Y = np.meshgrid(xx, yy)
-    ax3.plot_surface(X,Y,Z,cmap=cmap)
-    #ax3.contour(X,Y,Z, zdim='z',offset=-2，cmap=cmap)
+    ax3.plot_surface(X, Y, Z, cmap=cmap)
+    # ax3.contour(X,Y,Z, zdim='z',offset=-2，cmap=cmap)
     plt.show()
 
 
@@ -98,15 +97,15 @@ def patches_from_image(img, p_size=512, p_overlap=64, p_max=800):
     w, h = img.shape[:2]
     patches = []
     if w > p_max and h > p_max:
-        w1 = list(np.arange(0, w-p_size, p_size-p_overlap, dtype=np.int))
-        h1 = list(np.arange(0, h-p_size, p_size-p_overlap, dtype=np.int))
-        w1.append(w-p_size)
-        h1.append(h-p_size)
+        w1 = list(np.arange(0, w - p_size, p_size - p_overlap, dtype=np.int))
+        h1 = list(np.arange(0, h - p_size, p_size - p_overlap, dtype=np.int))
+        w1.append(w - p_size)
+        h1.append(h - p_size)
         # print(w1)
         # print(h1)
         for i in w1:
             for j in h1:
-                patches.append(img[i:i+p_size, j:j+p_size,:])
+                patches.append(img[i:i + p_size, j:j + p_size, :])
     else:
         patches.append(img)
 
@@ -121,7 +120,7 @@ def imssave(imgs, img_path):
     for i, img in enumerate(imgs):
         if img.ndim == 3:
             img = img[:, :, [2, 1, 0]]
-        new_path = os.path.join(os.path.dirname(img_path), img_name+str('_{:04d}'.format(i))+'.png')
+        new_path = os.path.join(os.path.dirname(img_path), img_name + str('_{:04d}'.format(i)) + '.png')
         cv2.imwrite(new_path, img)
 
 
@@ -144,8 +143,9 @@ def split_imageset(original_dataroot, taget_dataroot, n_channels=3, p_size=512, 
         img = imread_uint(img_path, n_channels=n_channels)
         patches = patches_from_image(img, p_size, p_overlap, p_max)
         imssave(patches, os.path.join(taget_dataroot, os.path.basename(img_path)))
-        #if original_dataroot == taget_dataroot:
-        #del img_path
+        # if original_dataroot == taget_dataroot:
+        # del img_path
+
 
 '''
 # --------------------------------------------
@@ -210,6 +210,7 @@ def imsave(img, img_path):
         img = img[:, :, [2, 1, 0]]
     cv2.imwrite(img_path, img)
 
+
 def imwrite(img, img_path):
     img = np.squeeze(img)
     if img.ndim == 3:
@@ -217,13 +218,14 @@ def imwrite(img, img_path):
     cv2.imwrite(img_path, img)
 
 
-
 # --------------------------------------------
 # get single image of size HxWxn_channles (BGR)
 # --------------------------------------------
 def read_img(path):
-    # read image by cv2
-    # return: Numpy float32, HWC, BGR, [0,1]
+    '''
+    read image by cv2
+    return: Numpy float32, HWC, BGR, [0,1]
+    '''
     img = cv2.imread(path, cv2.IMREAD_UNCHANGED)  # cv2.IMREAD_GRAYSCALE
     img = img.astype(np.float32) / 255.
     if img.ndim == 2:
@@ -251,23 +253,19 @@ def read_img(path):
 
 
 def uint2single(img):
-
-    return np.float32(img/255.)
+    return np.float32(img / 255.)
 
 
 def single2uint(img):
-
-    return np.uint8((img.clip(0, 1)*255.).round())
+    return np.uint8((img.clip(0, 1) * 255.).round())
 
 
 def uint162single(img):
-
-    return np.float32(img/65535.)
+    return np.float32(img / 65535.)
 
 
 def single2uint16(img):
-
-    return np.uint16((img.clip(0, 1)*65535.).round())
+    return np.uint16((img.clip(0, 1) * 65535.).round())
 
 
 # --------------------------------------------
@@ -294,7 +292,7 @@ def tensor2uint(img):
     img = img.data.squeeze().float().clamp_(0, 1).cpu().numpy()
     if img.ndim == 3:
         img = np.transpose(img, (1, 2, 0))
-    return np.uint8((img*255.0).round())
+    return np.uint8((img * 255.0).round())
 
 
 # --------------------------------------------
@@ -319,6 +317,7 @@ def tensor2single(img):
         img = np.transpose(img, (1, 2, 0))
 
     return img
+
 
 # convert torch tensor to single
 def tensor2single3(img):
@@ -515,7 +514,7 @@ def shave(img_in, border=0):
     # img_in: Numpy, HWC or HW
     img = np.copy(img_in)
     h, w = img.shape[:2]
-    img = img[border:h-border, border:w-border]
+    img = img[border:h - border, border:w - border]
     return img
 
 
@@ -624,18 +623,15 @@ def channel_convert(in_c, tar_type, img_list):
 # PSNR
 # --------------------------------------------
 def calculate_psnr(img1, img2, border=0):
-    # img1 and img2 have range [0, 255]
-    #img1 = img1.squeeze()
-    #img2 = img2.squeeze()
     if not img1.shape == img2.shape:
         raise ValueError('Input images must have the same dimensions.')
     h, w = img1.shape[:2]
-    img1 = img1[border:h-border, border:w-border]
-    img2 = img2[border:h-border, border:w-border]
+    img1 = img1[border:h - border, border:w - border]
+    img2 = img2[border:h - border, border:w - border]
 
     img1 = img1.astype(np.float64)
     img2 = img2.astype(np.float64)
-    mse = np.mean((img1 - img2)**2)
+    mse = np.mean((img1 - img2) ** 2)
     if mse == 0:
         return float('inf')
     return 20 * math.log10(255.0 / math.sqrt(mse))
@@ -649,13 +645,11 @@ def calculate_ssim(img1, img2, border=0):
     the same outputs as MATLAB's
     img1, img2: [0, 255]
     '''
-    #img1 = img1.squeeze()
-    #img2 = img2.squeeze()
     if not img1.shape == img2.shape:
         raise ValueError('Input images must have the same dimensions.')
     h, w = img1.shape[:2]
-    img1 = img1[border:h-border, border:w-border]
-    img2 = img2[border:h-border, border:w-border]
+    img1 = img1[border:h - border, border:w - border]
+    img2 = img2[border:h - border, border:w - border]
 
     if img1.ndim == 2:
         return ssim(img1, img2)
@@ -663,7 +657,7 @@ def calculate_ssim(img1, img2, border=0):
         if img1.shape[2] == 3:
             ssims = []
             for i in range(3):
-                ssims.append(ssim(img1[:,:,i], img2[:,:,i]))
+                ssims.append(ssim(img1[:, :, i], img2[:, :, i]))
             return np.array(ssims).mean()
         elif img1.shape[2] == 1:
             return ssim(np.squeeze(img1), np.squeeze(img2))
@@ -672,8 +666,8 @@ def calculate_ssim(img1, img2, border=0):
 
 
 def ssim(img1, img2):
-    C1 = (0.01 * 255)**2
-    C2 = (0.03 * 255)**2
+    C1 = (0.01 * 255) ** 2
+    C2 = (0.03 * 255) ** 2
 
     img1 = img1.astype(np.float64)
     img2 = img2.astype(np.float64)
@@ -682,11 +676,11 @@ def ssim(img1, img2):
 
     mu1 = cv2.filter2D(img1, -1, window)[5:-5, 5:-5]  # valid
     mu2 = cv2.filter2D(img2, -1, window)[5:-5, 5:-5]
-    mu1_sq = mu1**2
-    mu2_sq = mu2**2
+    mu1_sq = mu1 ** 2
+    mu2_sq = mu2 ** 2
     mu1_mu2 = mu1 * mu2
-    sigma1_sq = cv2.filter2D(img1**2, -1, window)[5:-5, 5:-5] - mu1_sq
-    sigma2_sq = cv2.filter2D(img2**2, -1, window)[5:-5, 5:-5] - mu2_sq
+    sigma1_sq = cv2.filter2D(img1 ** 2, -1, window)[5:-5, 5:-5] - mu1_sq
+    sigma2_sq = cv2.filter2D(img2 ** 2, -1, window)[5:-5, 5:-5] - mu2_sq
     sigma12 = cv2.filter2D(img1 * img2, -1, window)[5:-5, 5:-5] - mu1_mu2
 
     ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) *
@@ -701,31 +695,31 @@ def _blocking_effect_factor(im):
     block_vertical_positions = torch.arange(7, im.shape[2] - 1, 8)
 
     horizontal_block_difference = (
-                (im[:, :, :, block_horizontal_positions] - im[:, :, :, block_horizontal_positions + 1]) ** 2).sum(
+            (im[:, :, :, block_horizontal_positions] - im[:, :, :, block_horizontal_positions + 1]) ** 2).sum(
         3).sum(2).sum(1)
     vertical_block_difference = (
-                (im[:, :, block_vertical_positions, :] - im[:, :, block_vertical_positions + 1, :]) ** 2).sum(3).sum(
+            (im[:, :, block_vertical_positions, :] - im[:, :, block_vertical_positions + 1, :]) ** 2).sum(3).sum(
         2).sum(1)
 
     nonblock_horizontal_positions = np.setdiff1d(torch.arange(0, im.shape[3] - 1), block_horizontal_positions)
     nonblock_vertical_positions = np.setdiff1d(torch.arange(0, im.shape[2] - 1), block_vertical_positions)
 
     horizontal_nonblock_difference = (
-                (im[:, :, :, nonblock_horizontal_positions] - im[:, :, :, nonblock_horizontal_positions + 1]) ** 2).sum(
+            (im[:, :, :, nonblock_horizontal_positions] - im[:, :, :, nonblock_horizontal_positions + 1]) ** 2).sum(
         3).sum(2).sum(1)
     vertical_nonblock_difference = (
-                (im[:, :, nonblock_vertical_positions, :] - im[:, :, nonblock_vertical_positions + 1, :]) ** 2).sum(
+            (im[:, :, nonblock_vertical_positions, :] - im[:, :, nonblock_vertical_positions + 1, :]) ** 2).sum(
         3).sum(2).sum(1)
 
     n_boundary_horiz = im.shape[2] * (im.shape[3] // block_size - 1)
     n_boundary_vert = im.shape[3] * (im.shape[2] // block_size - 1)
     boundary_difference = (horizontal_block_difference + vertical_block_difference) / (
-                n_boundary_horiz + n_boundary_vert)
+            n_boundary_horiz + n_boundary_vert)
 
     n_nonboundary_horiz = im.shape[2] * (im.shape[3] - 1) - n_boundary_horiz
     n_nonboundary_vert = im.shape[3] * (im.shape[2] - 1) - n_boundary_vert
     nonboundary_difference = (horizontal_nonblock_difference + vertical_nonblock_difference) / (
-                n_nonboundary_horiz + n_nonboundary_vert)
+            n_nonboundary_horiz + n_nonboundary_vert)
 
     scaler = np.log2(block_size) / np.log2(min([im.shape[2], im.shape[3]]))
     bef = scaler * (boundary_difference - nonboundary_difference)
@@ -755,8 +749,8 @@ def calculate_psnrb(img1, img2, border=0):
         img1, img2 = np.expand_dims(img1, 2), np.expand_dims(img2, 2)
 
     h, w = img1.shape[:2]
-    img1 = img1[border:h-border, border:w-border]
-    img2 = img2[border:h-border, border:w-border]
+    img1 = img1[border:h - border, border:w - border]
+    img2 = img2[border:h - border, border:w - border]
 
     img1 = img1.astype(np.float64)
     img2 = img2.astype(np.float64)
@@ -775,6 +769,7 @@ def calculate_psnrb(img1, img2, border=0):
 
     return float(total) / img1.shape[1]
 
+
 '''
 # --------------------------------------------
 # matlab's bicubic imresize (numpy and torch) [0, 1]
@@ -785,10 +780,10 @@ def calculate_psnrb(img1, img2, border=0):
 # matlab 'imresize' function, now only support 'bicubic'
 def cubic(x):
     absx = torch.abs(x)
-    absx2 = absx**2
-    absx3 = absx**3
-    return (1.5*absx3 - 2.5*absx2 + 1) * ((absx <= 1).type_as(absx)) + \
-        (-0.5*absx3 + 2.5*absx2 - 4*absx + 2) * (((absx > 1)*(absx <= 2)).type_as(absx))
+    absx2 = absx ** 2
+    absx3 = absx ** 3
+    return (1.5 * absx3 - 2.5 * absx2 + 1) * ((absx <= 1).type_as(absx)) + \
+           (-0.5 * absx3 + 2.5 * absx2 - 4 * absx + 2) * (((absx > 1) * (absx <= 2)).type_as(absx))
 
 
 def calculate_weights_indices(in_length, out_length, scale, kernel, kernel_width, antialiasing):
@@ -997,20 +992,3 @@ def imresize_np(img, scale, antialiasing=True):
 
 if __name__ == '__main__':
     img = imread_uint('test.bmp', 3)
-#    img = uint2single(img)
-#    img_bicubic = imresize_np(img, 1/4)
-#    imshow(single2uint(img_bicubic))
-#
-#    img_tensor = single2tensor4(img)
-#    for i in range(8):
-#        imshow(np.concatenate((augment_img(img, i), tensor2single(augment_img_tensor4(img_tensor, i))), 1))
-    
-#    patches = patches_from_image(img, p_size=128, p_overlap=0, p_max=200)
-#    imssave(patches,'a.png')
-
-
-    
-    
-    
-    
-    

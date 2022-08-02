@@ -1,18 +1,16 @@
-
-from PIL import Image
 import io
 
-import torch
-from torch.utils.data import Dataset
 import torchvision.transforms as transforms
+from PIL import Image
+from torch.utils.data import Dataset
 
 
 class ImageNet_Withhold(Dataset):
-    def __init__(self, data_root, ann_file='', transform=None, train=True, task ='train'):
+    def __init__(self, data_root, ann_file='', transform=None, train=True, task='train'):
         super(ImageNet_Withhold, self).__init__()
         ann_file = ann_file + '/' + 'val_true.txt'
-        train_split  = (task == 'train' or  task == 'val')
-        self.data_root = data_root + '/'+ ('train' if train_split else 'val')
+        train_split = (task == 'train' or task == 'val')
+        self.data_root = data_root + '/' + ('train' if train_split else 'val')
 
         self.data = []
         self.nb_classes = 0
@@ -25,7 +23,7 @@ class ImageNet_Withhold(Dataset):
         # self.tarfile = tarfile.open(self.data_root)
 
         f = open(ann_file)
-        prefix =  'data/sdb/imagenet'+'/'+ ('train' if train_split else 'val') + '/'
+        prefix = 'data/sdb/imagenet' + '/' + ('train' if train_split else 'val') + '/'
         for line in f:
             tmp = line.strip().split('\t')[0]
             class_pic = tmp.split('/')
@@ -38,7 +36,7 @@ class ImageNet_Withhold(Dataset):
             else:
                 folders[class_tmp] = cnt
                 cnt += 1
-                self.data.append((class_tmp + '.zip', prefix + tmp + '.JPEG',folders[class_tmp]))
+                self.data.append((class_tmp + '.zip', prefix + tmp + '.JPEG', folders[class_tmp]))
 
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                          std=[0.229, 0.224, 0.225])
@@ -60,8 +58,8 @@ class ImageNet_Withhold(Dataset):
                     normalize,
                 ])
 
-
         self.nb_classes = cnt
+
     def __len__(self):
         return len(self.data)
 

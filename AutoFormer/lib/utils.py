@@ -1,14 +1,16 @@
+import datetime
 import io
 import os
+import sys
 import time
 from collections import defaultdict, deque
-import datetime
 
 import torch
 import torch.distributed as dist
-from loguru import logger 
-import sys
-logger.add(sys.stdout, level = 'DEBUG')
+from loguru import logger
+
+logger.add(sys.stdout, level='DEBUG')
+
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a

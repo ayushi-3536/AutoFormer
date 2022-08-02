@@ -1,7 +1,6 @@
 import torch.nn as nn
-import torch.nn as nn
 import torch.nn.functional as F
-
+import numpy as np
 from AutoFormer.model.vision_transformer.utils import to_2tuple
 
 

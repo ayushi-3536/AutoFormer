@@ -609,7 +609,6 @@ class SwinIR(nn.Module):
                                                  nn.LeakyReLU(negative_slope=0.2, inplace=True),
                                                  nn.Conv2d(embed_dim // 4, embed_dim, 3, 1, 1))
 
-        #####################################################################################################
         ################################ 3, high quality image reconstruction ################################
         if self.upsampler == 'pixelshuffle':
             # for classical SR
@@ -675,8 +674,7 @@ class SwinIR(nn.Module):
             'mlp_ratio': [2., 2., 1.5, 1.5] # Per RSTB layer
             'num_heads': [6, 6, 6, 6]       # Per RSTB layer
         }
-
-        So, all STL blocks are same within one RSTB layer. 
+        So, all STL blocks are same within one RSTB layer.
         The variation is between RSTB blocks.
         """
         self.sample_rstb_num = config['rstb_num']

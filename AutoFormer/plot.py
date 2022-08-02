@@ -1,4 +1,5 @@
 import argparse
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -8,7 +9,8 @@ if __name__ == "__main__":
                         default='C:\\Users\\ayush\\projects\\Autoformers\\AutoFormer\\log.txt',
                         type=str, nargs='?',
                         help='path of file')
-    parser.add_argument('--result_dir', default='C:\\Users\\ayush\\projects\\Autoformers\\AutoFormer\\', type=str, nargs='?',
+    parser.add_argument('--result_dir', default='C:\\Users\\ayush\\projects\\Autoformers\\AutoFormer\\', type=str,
+                        nargs='?',
                         help='name of folder where plot files will be dumped')
     args = parser.parse_args()
     train_loss = []
@@ -19,15 +21,14 @@ if __name__ == "__main__":
         train_loss.append(float(lines[3].replace(',', '')))
         test_acc1.append(float(lines[7].replace(',', '')))
 
-
     print("train_loss", train_loss)
     print("cum sum tl", train_loss)
     print("test acc", test_acc1)
 
-    test_acc_max = [max(test_acc1[:i+1]) for i in range(len(test_acc1))]
+    test_acc_max = [max(test_acc1[:i + 1]) for i in range(len(test_acc1))]
     print("test acc max", test_acc_max)
 
-    train_loss_min = [min(train_loss[:i+1]) for i in range(len(train_loss))]
+    train_loss_min = [min(train_loss[:i + 1]) for i in range(len(train_loss))]
     print("train loss min", train_loss_min)
 
     l = [i for i in range(len(train_loss))]
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     plt.ylabel('Test accuracy')
     print(epochs)
     print(test_acc1)
-    plt.scatter(epochs+1, test_acc1, alpha=0.3)
+    plt.scatter(epochs + 1, test_acc1, alpha=0.3)
 
     plt.tight_layout()
     plt.savefig(f'test_acc_for_top_50_every_epoch.pdf', dpi=450)

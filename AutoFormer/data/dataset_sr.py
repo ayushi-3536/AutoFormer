@@ -1,6 +1,7 @@
 import random
-import numpy as np
+
 import torch.utils.data as data
+
 import AutoFormer.utils.utils_image as util
 
 
@@ -30,7 +31,8 @@ class DatasetSR(data.Dataset):
 
         assert self.paths_H, 'Error: H path is empty.'
         if self.paths_L and self.paths_H:
-            assert len(self.paths_L) == len(self.paths_H), 'L/H mismatch - {}, {}.'.format(len(self.paths_L), len(self.paths_H))
+            assert len(self.paths_L) == len(self.paths_H), 'L/H mismatch - {}, {}.'.format(len(self.paths_L),
+                                                                                           len(self.paths_H))
 
     def __getitem__(self, index):
 
@@ -70,7 +72,6 @@ class DatasetSR(data.Dataset):
         # ------------------------------------
         # if self.opt['phase'] == 'train' or self.opt['phase'] == 'test':
         if self.opt['phase'] == 'train':
-
             H, W, C = img_L.shape
 
             # --------------------------------
@@ -101,5 +102,6 @@ class DatasetSR(data.Dataset):
             L_path = H_path
         # print(img_L.shape, img_H.shape)
         return img_L, img_H
+
     def __len__(self):
         return len(self.paths_H)

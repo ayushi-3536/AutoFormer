@@ -1,25 +1,30 @@
+import argparse
+import json
+import os
 import random
 import sys
-import numpy as np
 import time
+from pathlib import Path
+
+import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
-from pathlib import Path
-from loguru import logger
-from AutoFormer.lib.datasets import build_dataset
-from AutoFormer.lib import utils
-from AutoFormer.experiments.classification.supernet_engine import evaluate
-from AutoFormer.model.vision_transformer.supernet_transformer import Vision_TransformerSuper
-import argparse
-import os
 import yaml
+from loguru import logger
+
+from AutoFormer.experiments.classification.supernet_engine import evaluate
+from AutoFormer.lib import utils
 from AutoFormer.lib.config import cfg, update_config_from_file
-import json
+from AutoFormer.lib.datasets import build_dataset
+from AutoFormer.model.vision_transformer.supernet_transformer import Vision_TransformerSuper
+
 logger.add(sys.stdout, level='DEBUG')
+
 
 def decode_cand_tuple(cand_tuple):
     depth = cand_tuple[0]
-    return depth, list(cand_tuple[1:depth+1]), list(cand_tuple[depth + 1: 2 * depth + 1]), cand_tuple[-1]
+    return depth, list(cand_tuple[1:depth + 1]), list(cand_tuple[depth + 1: 2 * depth + 1]), cand_tuple[-1]
+
 
 class RandomSearcher(object):
 
@@ -85,9 +90,9 @@ class RandomSearcher(object):
         sampled_config['layer_num'] = depth
         sampled_config['mlp_ratio'] = mlp_ratio
         sampled_config['num_heads'] = num_heads
-        sampled_config['embed_dim'] = [embed_dim]*depth
+        sampled_config['embed_dim'] = [embed_dim] * depth
         n_parameters = self.model_without_ddp.get_sampled_params_numel(sampled_config)
-        info['params'] =  n_parameters / 10.**6
+        info['params'] = n_parameters / 10. ** 6
 
         if info['params'] > self.parameters_limits:
             logger.debug('parameters limit exceed')
@@ -98,8 +103,10 @@ class RandomSearcher(object):
             return False
 
         logger.debug(f"rank:{utils.get_rank()}, {cand}, {info['params']}")
-        eval_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain', retrain_config=sampled_config)
-        test_stats = evaluate(self.test_loader, self.model, self.device, amp=self.args.amp, mode='retrain', retrain_config=sampled_config)
+        eval_stats = evaluate(self.val_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
+                              retrain_config=sampled_config)
+        test_stats = evaluate(self.test_loader, self.model, self.device, amp=self.args.amp, mode='retrain',
+                              retrain_config=sampled_config)
 
         info['acc'] = eval_stats['acc1']
         info['test_acc'] = test_stats['acc1']
@@ -150,7 +157,6 @@ class RandomSearcher(object):
             logger.debug('random {}/{}'.format(len(self.candidates), num))
         logger.debug('random_num = {}'.format(len(self.candidates)))
 
-
     def search(self):
         logger.debug(
             'population_num = {} select_num = {} max_epochs = {}'.format(
@@ -177,16 +183,17 @@ class RandomSearcher(object):
             tmp_accuracy = []
             for i, cand in enumerate(self.keep_top_k[50]):
                 logger.debug('No.{} {} Top-1 val acc = {}, Top-1 test acc = {}, params = {}'.format(
-                    i + 1, cand, self.vis_dict[cand]['acc'], self.vis_dict[cand]['test_acc'], self.vis_dict[cand]['params']))
+                    i + 1, cand, self.vis_dict[cand]['acc'], self.vis_dict[cand]['test_acc'],
+                    self.vis_dict[cand]['params']))
                 tmp_accuracy.append(self.vis_dict[cand]['acc'])
-                
+
                 with open('cifar100_search_random.json', 'a+')as f:
-                    json.dump({'epoch': self.epoch, 'rank': i+1, 'val_acc_1': self.vis_dict[cand]['acc'],
-                               'test_acc_1': self.vis_dict[cand]['test_acc'], 'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
+                    json.dump({'epoch': self.epoch, 'rank': i + 1, 'val_acc_1': self.vis_dict[cand]['acc'],
+                               'test_acc_1': self.vis_dict[cand]['test_acc'], 'params': self.vis_dict[cand]['params'],
+                               'cand': cand}, f)
 
                     f.write("\n")
             self.top_accuracies.append(tmp_accuracy)
-
 
             self.candidates = []
 
@@ -195,6 +202,7 @@ class RandomSearcher(object):
             self.epoch += 1
 
             self.save_checkpoint()
+
 
 def get_args_parser():
     parser = argparse.ArgumentParser('DeiT training and evaluation script', add_help=False)
@@ -209,7 +217,7 @@ def get_args_parser():
     parser.add_argument('--min-param-limits', type=float, default=18)
 
     # config file
-    parser.add_argument('--cfg',help='experiment configure file name',required=True,type=str)
+    parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
 
     # custom parameters
     parser.add_argument('--platform', default='pai', type=str, choices=['itp', 'pai', 'aml'],
@@ -217,7 +225,8 @@ def get_args_parser():
     parser.add_argument('--teacher_model', default='', type=str,
                         help='Name of teacher model to train')
     parser.add_argument('--relative_position', action='store_true')
-    parser.add_argument('--max_relative_position', type=int, default=14, help='max distance in relative position embedding')
+    parser.add_argument('--max_relative_position', type=int, default=14,
+                        help='max distance in relative position embedding')
     parser.add_argument('--scale', action='store_true')
     parser.add_argument('--gp', action='store_true')
     parser.add_argument('--change_qkv', action='store_true')
@@ -364,8 +373,8 @@ def get_args_parser():
 
     return parser
 
-def main(args):
 
+def main(args):
     update_config_from_file(args.cfg)
     utils.init_distributed_mode(args)
 
@@ -375,7 +384,7 @@ def main(args):
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
     # save config for later experiments_configs
 
-    #self.output_dir = args.output_dir
+    # self.output_dir = args.output_dir
     with open(os.path.join(args.output_dir, "../../config.yaml"), 'w') as f:
         f.write(args_text)
     # fix the seed for reproducibility
@@ -428,7 +437,7 @@ def main(args):
     model = Vision_TransformerSuper(img_size=args.input_size,
                                     patch_size=args.patch_size,
                                     embed_dim=cfg.SUPERNET.EMBED_DIM, depth=cfg.SUPERNET.DEPTH,
-                                    num_heads=cfg.SUPERNET.NUM_HEADS,mlp_ratio=cfg.SUPERNET.MLP_RATIO,
+                                    num_heads=cfg.SUPERNET.NUM_HEADS, mlp_ratio=cfg.SUPERNET.MLP_RATIO,
                                     qkv_bias=True, drop_rate=args.drop,
                                     drop_path_rate=args.drop_path,
                                     gp=args.gp,
@@ -443,7 +452,6 @@ def main(args):
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
-
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.debug('number of params:{n_parameters}')
     if args.resume:
@@ -456,11 +464,11 @@ def main(args):
         model_without_ddp.load_state_dict(checkpoint['model'])
 
     choices = {'num_heads': cfg.SEARCH_SPACE.NUM_HEADS, 'mlp_ratio': cfg.SEARCH_SPACE.MLP_RATIO,
-               'embed_dim': cfg.SEARCH_SPACE.EMBED_DIM , 'depth': cfg.SEARCH_SPACE.DEPTH}
-
+               'embed_dim': cfg.SEARCH_SPACE.EMBED_DIM, 'depth': cfg.SEARCH_SPACE.DEPTH}
 
     t = time.time()
-    searcher = RandomSearcher(args, device, model, model_without_ddp, choices, data_loader_val, data_loader_test, args.output_dir)
+    searcher = RandomSearcher(args, device, model, model_without_ddp, choices, data_loader_val, data_loader_test,
+                              args.output_dir)
 
     searcher.search()
 

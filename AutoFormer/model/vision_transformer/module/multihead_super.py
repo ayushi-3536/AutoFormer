@@ -132,8 +132,10 @@ class AttentionSuper(nn.Module):
         total_flops += sequence_length * sequence_length * self.sample_qk_embed_dim
         total_flops += self.proj.get_complexity(sequence_length)
         if self.relative_position:
-            total_flops += self.max_relative_position * sequence_length * sequence_length + sequence_length * sequence_length / 2.0
-            total_flops += self.max_relative_position * sequence_length * sequence_length + sequence_length * self.sample_qk_embed_dim / 2.0
+            total_flops += self.max_relative_position * sequence_length * sequence_length + sequence_length \
+                           * sequence_length / 2.0
+            total_flops += self.max_relative_position * sequence_length * sequence_length + sequence_length \
+                           * self.sample_qk_embed_dim / 2.0
         return total_flops
 
     def forward(self, x):
@@ -155,11 +157,10 @@ class AttentionSuper(nn.Module):
             r_p_v = self.rel_pos_embed_v(N, N)
             attn_1 = attn.permute(2, 0, 1, 3).reshape(N, B * self.sample_num_heads, -1)
             # The size of attention is (B, num_heads, N, N), reshape it to (N, B*num_heads, N) and do batch matmul with
-            # the relative position embedding of V (N, N, head_dim) get shape like (N, B*num_heads, head_dim). We reshape it to the
-            # same size as x (B, num_heads, N, hidden_dim)
-            x = x + (attn_1 @ r_p_v).transpose(1, 0).reshape(B, self.sample_num_heads, N, -1).transpose(2, 1).reshape(B,
-                                                                                                                      N,
-                                                                                                                      -1)
+            # the relative position embedding of V (N, N, head_dim) get shape like (N, B*num_heads, head_dim).
+            # We reshape it to the  same size as x (B, num_heads, N, hidden_dim)
+            x = x + (attn_1 @ r_p_v).transpose(1, 0). \
+                reshape(B, self.sample_num_heads, N, -1).transpose(2, 1).reshape(B, N, -1)
 
         if self.fc_scale:
             x = x * (self.super_embed_dim / self.sample_qk_embed_dim)

@@ -1,6 +1,6 @@
-import os
-import tensorflow as tf
 from datetime import datetime
+
+import tensorflow as tf
 from torch.utils.tensorboard import SummaryWriter
 
 print(tf.__version__)
@@ -72,4 +72,5 @@ def read_logs(file):
     return plot_data
 
 
-read_logs('C:\\Users\\ayush\\projects\\Autoformers\\AutoFormer\\tensorboard\\valid\\events.out.tfevents.1658750026.dlcgpu10.7507.1')
+read_logs(
+    'C:\\Users\\ayush\\projects\\Autoformers\\AutoFormer\\tensorboard\\valid\\events.out.tfevents.1658750026.dlcgpu10.7507.1')

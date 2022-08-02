@@ -1,13 +1,12 @@
 import argparse
 import pathlib
 import typing
-
 from collections import namedtuple
 
-import numpy as np
 import matplotlib.pyplot as plt
-from pylab import rcParams
+import numpy as np
 import pandas as pd
+from pylab import rcParams
 
 rcParams['font.size'] = 22
 rcParams['font.weight'] = 'bold'
@@ -23,12 +22,11 @@ TASK_TO_METRIC = {
 }
 
 
-def plot_all(evolution_input_path: typing.Union[str, pathlib.Path], 
+def plot_all(evolution_input_path: typing.Union[str, pathlib.Path],
              random_search_input_path: typing.Union[str, pathlib.Path],
              output_path: typing.Union[str, pathlib.Path],
              metric: Metric,
              tag: str = None):
-
     output_path = pathlib.Path(output_path)
     tag = f'{tag}_' if tag is not None else ''
 
@@ -61,7 +59,7 @@ def plot_all(evolution_input_path: typing.Union[str, pathlib.Path],
             ax.scatter([], [], color='tab:blue', label='Random')
 
         leg = plt.legend(markerscale=1.5)
-        for lh in leg.legendHandles: 
+        for lh in leg.legendHandles:
             lh.set_alpha(1)
         # Have the ticks be integers
         plt.locator_params(axis="both", integer=True, tight=True)
@@ -69,18 +67,17 @@ def plot_all(evolution_input_path: typing.Union[str, pathlib.Path],
         return fig, ax
 
     ## Epoch vs Performance
-    fig, ax = generate_scatter_plot(ev_data_df, rs_data_df, 
-                                    x_col='epoch', x_label='Search Iteration', 
+    fig, ax = generate_scatter_plot(ev_data_df, rs_data_df,
+                                    x_col='epoch', x_label='Search Iteration',
                                     perf_col=metric.col_name)
     # plt.tight_layout()
     fig.savefig(output_path / f'{tag}perf_for_top_50_every_epoch.png', dpi=450, bbox_inches='tight')
     plt.show()
 
     ## Param-size vs Performance
-    fig, ax = generate_scatter_plot(ev_data_df, rs_data_df, 
-                                    x_col='params', x_label='Number of Parameters (in Millions)', 
+    fig, ax = generate_scatter_plot(ev_data_df, rs_data_df,
+                                    x_col='params', x_label='Number of Parameters (in Millions)',
                                     perf_col=metric.col_name)
-    # plt.tight_layout()
     plt.savefig(output_path / f'{tag}perf_vs_params_for_highperf_cand.png', dpi=450, bbox_inches='tight')
     plt.show()
 
@@ -118,8 +115,8 @@ def main():
     metric = TASK_TO_METRIC[task]
 
     plot_all(
-        input_path_evolution, 
-        input_path_random, 
+        input_path_evolution,
+        input_path_random,
         result_dir,
         metric,
         tag=task

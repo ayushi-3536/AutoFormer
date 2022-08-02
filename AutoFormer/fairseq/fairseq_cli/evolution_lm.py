@@ -1,11 +1,12 @@
+import argparse
+import json
+import os
 import random
 import sys
 import time
+
 import torch
-import argparse
-import os
 from loguru import logger
-import json
 
 logger.add(sys.stdout, level='DEBUG')
 
@@ -18,10 +19,11 @@ def decode_cand_tuple(cand_tuple):
            list(cand_tuple[2 * depth: 3 * depth]), \
            cand_tuple[-1]
 
+
 class EvolutionSearcher(object):
 
     def __init__(self, args, model, validator, choices, output_dir):
-        #self.device = device
+        # self.device = device
         self.model = model
         self.validator = validator
         self.args = args
@@ -93,10 +95,9 @@ class EvolutionSearcher(object):
         logger.debug(f'sampled_config:{sampled_config}')
 
         self.model.set_sample_config(sample_num_heads=num_heads,
-                                    sample_embed_dim=embed_dim,
-                                    sample_ffn_embed_dim=ff_embed_dim,
-                                    sample_depth=depth)
-
+                                     sample_embed_dim=embed_dim,
+                                     sample_ffn_embed_dim=ff_embed_dim,
+                                     sample_depth=depth)
 
         n_parameters = self.model.get_sampled_params_numel()
         info['params'] = n_parameters / 10. ** 6
@@ -183,7 +184,7 @@ class EvolutionSearcher(object):
 
         def random_func():
             cand = list(random.choice(self.keep_top_k[k]))
-            num_heads, embed_dim, ff_embed_dim, depth= decode_cand_tuple(cand)
+            num_heads, embed_dim, ff_embed_dim, depth = decode_cand_tuple(cand)
             random_s = random.random()
 
             # depth
@@ -194,14 +195,14 @@ class EvolutionSearcher(object):
                     logger.debug(f'embed dim one:{embed_dim[-1]}, embed dim :{embed_dim}')
                     embed_dim = embed_dim + [embed_dim[-1] for _ in range(new_depth - depth)]
                     logger.debug(f'embed dim after:{embed_dim}')
-                    ff_embed_dim = ff_embed_dim + [random.choice(self.choices['ffn_embed_dim']) for _ in range(new_depth - depth)]
+                    ff_embed_dim = ff_embed_dim + [random.choice(self.choices['ffn_embed_dim']) for _ in
+                                                   range(new_depth - depth)]
                     logger.debug(f'embed dim after:{ff_embed_dim}')
                 else:
                     num_heads = num_heads[:new_depth]
                     embed_dim = embed_dim[:new_depth]
                     ff_embed_dim = ff_embed_dim[:new_depth]
-                depth=new_depth
-
+                depth = new_depth
 
             # num_heads
             for i in range(depth):
@@ -229,6 +230,7 @@ class EvolutionSearcher(object):
 
             logger.debug(f'mutated cand:{result_cand}')
             return tuple(result_cand)
+
         cand_iter = self.stack_random_cand(random_func)
         while len(res) < mutation_num and max_iters > 0:
             max_iters -= 1
@@ -263,8 +265,8 @@ class EvolutionSearcher(object):
             crossover_cfg = []
             depth = p1[-1]
 
-            #embed dim and ffn_embed dim has to be same for every layer, crossover just once and propogate the same
-            embed_dim_index = list(range(depth, 2*depth))
+            # embed dim and ffn_embed dim has to be same for every layer, crossover just once and propogate the same
+            embed_dim_index = list(range(depth, 2 * depth))
             logger.debug(f'embed dim index:{embed_dim_index}')
             for idx, (i, j) in enumerate(zip(p1, p2)):
                 if idx not in embed_dim_index:
@@ -512,8 +514,7 @@ def get_args_parser():
     return parser
 
 
-
-def main(args,model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
+def main(args, model, search_validate, choices, output_dir='/work/dlclarge1/sharmaa-dltrans/robertasearch'):
     t = time.time()
     searcher = EvolutionSearcher(args, model, search_validate, choices, output_dir)
 
@@ -521,5 +522,3 @@ def main(args,model, search_validate, choices, output_dir='/work/dlclarge1/sharm
 
     logger.debug('total searching time = {:.2f} hours'.format(
         (time.time() - t) / 3600))
-
-
