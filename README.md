@@ -78,8 +78,6 @@ bash 06-retrain-finetune.sh
 
 ### Evaluate on test set
 
-### Run retrain (Finetune)
-
 ```sh
 bash 03-eval-test.sh
 ```
