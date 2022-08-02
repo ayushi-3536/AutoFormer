@@ -219,7 +219,7 @@ def main(args):
             )
         if args.dist_eval:
             if len(dataset_val) % num_tasks != 0:
-                print(
+                logger.warning(
                     'Warning: Enabling distributed evaluation with an eval dataset not divisible by process number. '
                     'This will slightly alter validation results as extra duplicate entries are added to achieve '
                     'equal num of samples per-process.')

@@ -196,7 +196,7 @@ def main(args):
     utils.init_distributed_mode(args)
     update_config_from_file(args.cfg)
 
-    print(args)
+    logger.debug(f'args:{args}')
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
 
     # For reading from .json file, major part of .json can be turned into commandline args
@@ -217,8 +217,7 @@ def main(args):
     for phase, dataset_opt in opt['datasets'].items():
         if phase == 'train':
             train_set = DatasetSR(dataset_opt)
-            print('Dataset [{:s} - {:s}] is created.'.format(train_set.__class__.__name__, dataset_opt['name']))
-            print(dataset_opt)
+            logger.debug('Dataset [{:s} - {:s}] is created.'.format(train_set.__class__.__name__, dataset_opt['name']))
             if args.distributed:
                 num_tasks = utils.get_world_size()
                 global_rank = utils.get_rank()
@@ -236,22 +235,19 @@ def main(args):
             )
         elif phase == 'valid' and args.mode == 'super':
             test_set = DatasetSR(dataset_opt)
-            print('Dataset [{:s} - {:s}] is created.'.format(test_set.__class__.__name__, dataset_opt['name']))
-            print(dataset_opt)
+            logger.debug('Dataset [{:s} - {:s}] is created.'.format(test_set.__class__.__name__, dataset_opt['name']))
             data_loader_test = DataLoader(test_set, batch_size=1,
                                           shuffle=False, num_workers=8,
                                           drop_last=False, pin_memory=True)
 
         elif phase == 'test' and args.mode == 'retrain':
             test_set = DatasetSR(dataset_opt)
-            print('Dataset [{:s} - {:s}] is created.'.format(test_set.__class__.__name__, dataset_opt['name']))
-            print(dataset_opt)
+            logger.debug('Dataset [{:s} - {:s}] is created.'.format(test_set.__class__.__name__, dataset_opt['name']))
             data_loader_test = DataLoader(test_set, batch_size=1,
                                           shuffle=False, num_workers=4,
                                           drop_last=False, pin_memory=True)
 
-    print(f"Creating SwinIRTransformer")
-    print(cfg)
+    logger.debug(f"Creating SwinIRTransformer")
     opt_net = opt['netG']
     model = SwinIR(img_size=opt_net['img_size'],
                    window_size=opt_net['window_size'],
@@ -278,7 +274,7 @@ def main(args):
         model_without_ddp = model.module
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print('number of params:', n_parameters)
+    logger.debug(f'number of params:{n_parameters}')
 
     linear_scaled_lr = args.lr * args.batch_size * utils.get_world_size() / 512.0
     args.lr = linear_scaled_lr
@@ -320,10 +316,10 @@ def main(args):
     if args.eval:
         test_stats = evaluate(data_loader_test, model, device, mode=args.mode, retrain_config=retrain_config,
                               scaling=args.scale)
-        print(f"PSNR of the network on the {len(test_set)} test images: {test_stats['psnr']:.1f}%")
+        logger.debug(f"PSNR of the network on the {len(test_set)} test images: {test_stats['psnr']:.1f}%")
         return
 
-    print("Start training")
+    logger.debug("Start training")
     start_time = time.time()
     max_psnr = 0.0
 
@@ -358,7 +354,7 @@ def main(args):
         test_stats = evaluate(data_loader_test, model, device, amp=args.amp, choices=choices, mode=args.mode,
                               retrain_config=retrain_config)
         max_psnr = max(max_psnr, test_stats["psnr"])
-        print(f'Max psnr: {max_psnr:.2f}%')
+        logger.debug(f'Max psnr: {max_psnr:.2f}%')
 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      **{f'test_{k}': v for k, v in test_stats.items()},
