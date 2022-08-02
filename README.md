@@ -41,20 +41,23 @@ pip install --editable ./
 ### Run supernet train
 
 ```python
-python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.classification.supernet_train --data-path ./data/cifar-100 --data-set CIFAR100 --gp --change_qk --relative_position --mode retrain --dist-eval --cfg ./AutoFormer/experiments_configs/classification/AutoFormer-T.yaml --epochs 500 --output ./output_cifar_scratchtrain
+python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.classification.supernet_train --num_workers=8 --data-path ./data/cifar-100 --data-set CIFAR100 --gp  --change_qk --relative_position --mode super --dist-eval --cfg ./experiments/imagenet_supernet/supernet-T.yaml --epochs 500 --warmup-epochs 20 --output ./output_change --batch-size 128```
+```
+
+### Run evolutionary search
+```python
+python -m torch.distributed.launch --use_env -m AutoFormer.experiments.classification.evolution --data-path ./data/evol_cifar100 --gp  --change_qk --relative_position --dist-eval --cfg ./AutoFormer/experiments_configs/classification/supernet-T.yaml --resume {/PATH/checkpoint.pth}  --min-param-limits 0.0 --param-limits 5.560792 --data-set CIFAR100 --output_dir ./search_output
 ```
 
 ### Run retrain (From scratch)
-
 ```python
 python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.classification.supernet_train --data-path ./data/cifar-100 --data-set CIFAR100 --gp --change_qk --relative_position --mode retrain --dist-eval --cfg ./AutoFormer/experiments_configs/classification/AutoFormer-T.yaml --epochs 500 --output ./output_cifar_scratchretrain
 ```
 
-
 ### Run retrain (Finetune)
 
 ```python
-python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.classification.supernet_train --data-path ./data/cifar-100 --data-set CIFAR100 --gp --change_qk --relative_position --mode retrain --dist-eval --cfg ./AutoFormer/experiments_configs/classification/AutoFormer-T.yaml --resume /work/dlclarge1/sharmaa-dltrans/AutoFormer/AutoFormer/output_change/checkpoint.pth --start_epoch 500 --epochs 540 --output ./output_cifar_finetrain
+python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.classification.supernet_train --data-path ./data/cifar-100 --data-set CIFAR100 --gp --change_qk --relative_position --mode retrain --dist-eval --cfg ./AutoFormer/experiments_configs/classification/AutoFormer-T.yaml --resume {/PATH/checkpoint.pth} --start_epoch 500 --epochs 540 --output ./output_cifar_finetrain
 
 ```
 
@@ -63,22 +66,24 @@ python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.classifi
 ### Run supernet train
 
 ```python
-python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.super_resolution.supernet_train  --gp --change_qk --relative_position --mode super --dist-eval --cfg ./AutoFormer/experiments_configs/supernet-swinir/AutoFormer-T.yaml  --opt-doc ./AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json --epochs 300 --output ./output_swinir_super
+python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.super_resolution.supernet_train  --gp --change_qk --relative_position --mode super --dist-eval --cfg ./AutoFormer/experiments_configs/supernet-swinir/supernet-T.yaml --opt-doc ./AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json --epochs 300 --output ./output_swinir_train
+```
 
+### Run evolutionary search
+```python
+python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.super_resolution.random_swin --gp  --change_qk --relative_position --dist-eval --cfg ./AutoFormer/experiments_configs/supernet-swinir/supernet-T.yaml  --opt-doc ./AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json --resume {/PATH/checkpoint.pth}  --min-param-limits 0.0 --param-limits 9.29628  --output_dir ./search_swinir_random```
 ```
 
 ### Run retrain (From scratch)
 
 ```python
-python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.super_resolution.supernet_train  --gp --change_qk --relative_position --mode retrain --dist-eval --cfg ./AutoFormer/experiments_configs/supernet-swinir/AutoFormer-T.yaml --opt-doc ./AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json  --start_epoch 300 --output ./output_swinir_retrain_scratch
-
+python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.super_resolution.supernet_train  --gp --change_qk --relative_position --mode retrain --dist-eval --cfg ./AutoFormer/experiments_configs/supernet-swinir/AutoFormer-T.yaml  --opt-doc ./AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json --epochs 300 --output ./output_swinir_retrain
 ```
 
-### Run retrain (Finetune)
+### Run Finetune
 
 ```python
-python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.super_resolution.supernet_train  --gp --change_qk --relative_position --mode retrain --dist-eval --cfg ./AutoFormer/experiments_configs/supernet-swinir/AutoFormer-T.yaml --resume ./AutoFormer/output_swin_newsplit/checkpoint.pth --opt-doc ./AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json  --start_epoch 300 --epochs 340 --output ./output_swinir_finetrain
-
+python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.super_resolution.supernet_train  --gp --change_qk --relative_position --mode retrain --dist-eval --cfg ./AutoFormer/experiments_configs/supernet-swinir/AutoFormer-T.yaml --resume {/PATH/checkpoint.pth} --opt-doc ./AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json  --start_epoch 300 --epochs 340 --output ./output_swinir_finetrain
 ```
 
 ## Autoformer for RoBERTa (Masked-LM)
