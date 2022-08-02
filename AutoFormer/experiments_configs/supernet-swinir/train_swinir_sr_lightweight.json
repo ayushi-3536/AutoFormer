@@ -1,5 +1,5 @@
 {
-  "task": "swinir_sr_lightweight_x2"     //  classical image sr for x2/x3/x4. root/task/images-models-options
+  "task": "swinir_sr_lightweight_x4"     //  classical image sr for x2/x3/x4. root/task/images-models-options
   , "model": "plain" // "plain" | "plain2" if two inputs
   , "gpu_ids": [0,1,2,3,4,5,6,7]
   , "dist": true
@@ -29,8 +29,8 @@
     "test": {
       "name": "test_dataset"           // just name
       , "dataset_type": "sr"         // "dncnn" | "dnpatch" | "fdncnn" | "ffdnet" | "sr" | "srmd" | "dpsr" | "plain" | "plainpatch" | "jpeg"
-      , "dataroot_H": "/work/dlclarge1/sharmaa-dltrans/AutoFormer/AutoFormer/testsets/Set14/GTmod12"// path of H training dataset. DIV2K (800 training images)
-      , "dataroot_L": "/work/dlclarge1/sharmaa-dltrans/AutoFormer/AutoFormer/testsets/Set14/LRbicx4"       // path of L training dataset
+      , "dataroot_H": "AutoFormer/AutoFormer/testsets/Set14/GTmod12"// path of H training dataset. DIV2K (800 training images)
+      , "dataroot_L": "AutoFormer/AutoFormer/testsets/Set14/LRbicx4"       // path of L training dataset
       , "H_size": 96
       , "dataloader_shuffle": true
       , "dataloader_num_workers": 8
