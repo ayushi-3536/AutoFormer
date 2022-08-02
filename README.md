@@ -41,7 +41,7 @@ pip install --editable ./
 ### Run supernet train
 
 ```python
-python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.classification.supernet_train --num_workers=8 --data-path ./data/cifar-100 --data-set CIFAR100 --gp  --change_qk --relative_position --mode super --dist-eval --cfg ./experiments/imagenet_supernet/supernet-T.yaml --epochs 500 --warmup-epochs 20 --output ./output_change --batch-size 128```
+python3 -m torch.distributed.launch --use_env -m AutoFormer.experiments.classification.supernet_train --num_workers=8 --data-path ./data/cifar-100 --data-set CIFAR100 --gp  --change_qk --relative_position --mode super --dist-eval --cfg ./AutoFormer/experiments/imagenet_supernet/supernet-T.yaml --epochs 500 --warmup-epochs 20 --output ./output_change --batch-size 128```
 ```
 
 ### Run evolutionary search
@@ -119,6 +119,8 @@ bash 06-retrain-finetune.sh
 bash 03-eval-test.sh
 ```
 
+## Model Checkpoints
+- https://drive.google.com/drive/folders/1qX4hld4xOS9MKTj6Rzz7t_f0QP8Eqckv?usp=sharing
 ## Code Sources
 
 - [microsoft/Cream](https://github.com/microsoft/Cream)
