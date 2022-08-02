@@ -9,8 +9,9 @@ import matplotlib.pyplot as plt
 from pylab import rcParams
 import pandas as pd
 
-rcParams['font.size'] = 16
-rcParams['legend.fontsize'] = 20
+rcParams['font.size'] = 22
+rcParams['font.weight'] = 'bold'
+rcParams['legend.fontsize'] = 22
 plt.style.use('ggplot')
 
 Metric = namedtuple("Metric", "col_name full_name plot_low plot_high")
@@ -39,8 +40,8 @@ def plot_all(evolution_input_path: typing.Union[str, pathlib.Path],
     def generate_scatter_plot(ev_data_df, rs_data_df, x_col, x_label, perf_col):
         fig, ax = plt.subplots(figsize=(14, 8))
 
-        ax.set_xlabel(x_label, fontsize=16)
-        ax.set_ylabel(metric.full_name, fontsize=16)
+        ax.set_xlabel(x_label, fontsize=22, color='black', fontweight='bold')
+        ax.set_ylabel(metric.full_name, fontsize=22, color='black', fontweight='bold')
         ax.set_ylim(metric.plot_low, metric.plot_high)
 
         mix_scatter = True
@@ -72,7 +73,7 @@ def plot_all(evolution_input_path: typing.Union[str, pathlib.Path],
                                     x_col='epoch', x_label='Search Iteration', 
                                     perf_col=metric.col_name)
     # plt.tight_layout()
-    fig.savefig(output_path / f'{tag}perf_for_top_50_every_epoch.pdf', dpi=450, bbox_inches='tight')
+    fig.savefig(output_path / f'{tag}perf_for_top_50_every_epoch.png', dpi=450, bbox_inches='tight')
     plt.show()
 
     ## Param-size vs Performance
@@ -80,7 +81,7 @@ def plot_all(evolution_input_path: typing.Union[str, pathlib.Path],
                                     x_col='params', x_label='Number of Parameters (in Millions)', 
                                     perf_col=metric.col_name)
     # plt.tight_layout()
-    plt.savefig(output_path / f'{tag}perf_vs_params_for_highperf_cand.pdf', dpi=450, bbox_inches='tight')
+    plt.savefig(output_path / f'{tag}perf_vs_params_for_highperf_cand.png', dpi=450, bbox_inches='tight')
     plt.show()
 
 
