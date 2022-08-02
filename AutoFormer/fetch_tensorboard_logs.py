@@ -2,7 +2,7 @@ from datetime import datetime
 
 import tensorflow as tf
 from torch.utils.tensorboard import SummaryWriter
-
+import argparse
 print(tf.__version__)
 import matplotlib.pyplot as plt
 import tensorflow.compat.v1 as tf
@@ -71,6 +71,11 @@ def read_logs(file):
     plt.savefig(f'valid_ppl_vs_epoch_for_milestone3.pdf', dpi=450)
     return plot_data
 
-
-read_logs(
-    'C:\\Users\\ayush\\projects\\Autoformers\\AutoFormer\\tensorboard\\valid\\events.out.tfevents.1658750026.dlcgpu10.7507.1')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_path',
+                        default='C:\\Users\\ayush\\projects\\Autoformers\\AutoFormer\\log.txt',
+                        type=str, nargs='?',
+                        help='path of file')
+    args = parser.parse_args()
+    read_logs(args.input_path)
