@@ -17,9 +17,9 @@ plt.style.use('ggplot')
 Metric = namedtuple("Metric", "col_name full_name plot_low plot_high")
 
 TASK_TO_METRIC = {
-    'cifar100': Metric("test_acc_1", "Accuracy@1", 60, 75),
-    'swinir': Metric("psnr", "PSNR", 23, 25),
-    'roberta': Metric("ppl", "MLM Perplexity", 12, 30),
+    'cifar100': Metric("test_acc_1", "Accuracy@1", 63, 71),
+    'swinir': Metric("psnr", "PSNR", 23.5, 25),
+    'roberta': Metric("ppl", "MLM Perplexity", 14, 26),
 }
 
 
