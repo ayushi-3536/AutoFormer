@@ -8,23 +8,23 @@ from timm.data import Mixup
 from timm.utils import accuracy, ModelEma
 from AutoFormer.lib import utils
 import random
-import time
 from loguru import logger
 
 logger.add(sys.stdout, level='DEBUG')
 
-def sample_configs(choices):
 
+def sample_configs(choices):
     config = {}
     dimensions = ['mlp_ratio', 'num_heads']
     depth = random.choice(choices['depth'])
     for dimension in dimensions:
         config[dimension] = [random.choice(choices[dimension]) for _ in range(depth)]
 
-    config['embed_dim'] = [random.choice(choices['embed_dim'])]*depth
+    config['embed_dim'] = [random.choice(choices['embed_dim'])] * depth
 
     config['layer_num'] = depth
     return config
+
 
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -72,7 +72,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                         teach_output = teacher_model(samples)
                     _, teacher_label = teach_output.topk(1, 1, True, True)
                     outputs = model(samples)
-                    loss = 1/2 * criterion(outputs, targets) + 1/2 * teach_loss(outputs, teacher_label.squeeze())
+                    loss = 1 / 2 * criterion(outputs, targets) + 1 / 2 * teach_loss(outputs, teacher_label.squeeze())
                 else:
                     outputs = model(samples)
                     loss = criterion(outputs, targets)
@@ -98,7 +98,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         if amp:
             is_second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
             loss_scaler(loss, optimizer, clip_grad=max_norm,
-                    parameters=model.parameters(), create_graph=is_second_order)
+                        parameters=model.parameters(), create_graph=is_second_order)
         else:
             loss.backward()
             optimizer.step()
@@ -133,7 +133,6 @@ def evaluate(data_loader, model, device, amp=True, choices=None, mode='super', r
         model_module = unwrap_model(model)
         model_module.set_sample_config(config=config)
 
-
     logger.debug("sampled model config: {}".format(config))
     parameters = model_module.get_sampled_params_numel(config)
     logger.debug("sampled model parameters: {}".format(parameters))
@@ -159,6 +158,6 @@ def evaluate(data_loader, model, device, amp=True, choices=None, mode='super', r
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     logger.debug('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
-          .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
+                 .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
 
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}

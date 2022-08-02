@@ -9,7 +9,6 @@ from AutoFormer.lib import utils
 from AutoFormer.experiments.super_resolution.supernet_engine import evaluate
 from AutoFormer.model.swinIR.network_swinir import SwinIR
 from AutoFormer.data.dataset_sr import DatasetSR
-from torch.utils.data.distributed import DistributedSampler
 import argparse
 import os
 import yaml
@@ -25,9 +24,9 @@ def decode_cand_tuple(cand_tuple):
     logger.debug(f'cand tuple:{cand_tuple}')
     # Example: (3, 1.5, 1.0, 1.5, 5, 5, 5, 45, 45, 60, 2)
     rstb_num = cand_tuple[0]
-    return rstb_num, list(cand_tuple[1:rstb_num + 1]),\
-           list(cand_tuple[rstb_num + 1: 2 * rstb_num + 1]),\
-           list(cand_tuple[2*rstb_num + 1: 3 * rstb_num + 1]),\
+    return rstb_num, list(cand_tuple[1:rstb_num + 1]), \
+           list(cand_tuple[rstb_num + 1: 2 * rstb_num + 1]), \
+           list(cand_tuple[2 * rstb_num + 1: 3 * rstb_num + 1]), \
            cand_tuple[-1]
 
 
@@ -95,15 +94,15 @@ class EvolutionSearcher(object):
             return False
         rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
 
-
-        logger.debug(f'rstb_num:{rstb_num}, mlp_ratio"{mlp_ratio}, numhead:{num_heads}, embed dim:{embed_dim}, stl_num:{stl_num}')
+        logger.debug(
+            f'rstb_num:{rstb_num}, mlp_ratio"{mlp_ratio}, numhead:{num_heads}, embed dim:{embed_dim}, stl_num:{stl_num}')
         sampled_config = {}
         sampled_config['rstb_num'] = rstb_num
         sampled_config['stl_num'] = stl_num
         sampled_config['num_heads'] = num_heads
         sampled_config['embed_dim'] = embed_dim
         sampled_config['mlp_ratio'] = mlp_ratio
-        
+
         logger.debug(f'sampled_config:{sampled_config}')
 
         n_parameters = self.model_without_ddp.get_sampled_params_numel(sampled_config)
@@ -124,7 +123,7 @@ class EvolutionSearcher(object):
         #                       retrain_config=sampled_config)
         logger.debug(f'eval stats:{eval_stats}')
         info['psnr'] = eval_stats['psnr']
-        #info['test_acc'] = test_stats['acc1']
+        # info['test_acc'] = test_stats['acc1']
 
         info['visited'] = True
 
@@ -203,8 +202,10 @@ class EvolutionSearcher(object):
                 new_rstb_num = random.choice(self.choices['rstb_num'])
 
                 if new_rstb_num > rstb_num:
-                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in range(new_rstb_num - rstb_num)]
-                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in range(new_rstb_num - rstb_num)]
+                    mlp_ratio = mlp_ratio + [random.choice(self.choices['mlp_ratio']) for _ in
+                                             range(new_rstb_num - rstb_num)]
+                    num_heads = num_heads + [random.choice(self.choices['num_heads']) for _ in
+                                             range(new_rstb_num - rstb_num)]
 
                     logger.debug(f'embed dim one:{embed_dim[-1]}, embed dim :{embed_dim}')
                     embed_dim = embed_dim + [embed_dim[-1] for _ in range(new_rstb_num - rstb_num)]
@@ -280,55 +281,25 @@ class EvolutionSearcher(object):
                 p2 = random.choice(self.keep_top_k[k])
             logger.debug(f"cand p1:{p1}")
             logger.debug(f"cand p2:{p2}")
-            #rstb_num_1, mlp_ratio_1, num_heads_1, embed_dim_1, stl_num_1 = decode_cand_tuple(p1)
-            #rstb_num_2, mlp_ratio_2, num_heads_2, embed_dim_2, stl_num_2 = decode_cand_tuple(p2)
             crossover_cfg = []
             rstb_index = p1[0]
-            embed_dim_index = list(range(2*rstb_index + 1,3 * rstb_index + 1))
+            embed_dim_index = list(range(2 * rstb_index + 1, 3 * rstb_index + 1))
             logger.debug(f'embed dim index:{embed_dim_index}')
             for idx, (i, j) in enumerate(zip(p1, p2)):
                 if idx not in embed_dim_index:
                     crossover_cfg.append(random.choice([i, j]))
                 else:
-                    logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx+1}')
+                    logger.debug(f'length of crossover cfg:{len(crossover_cfg)}, index:{idx + 1}')
                     if len(crossover_cfg) > idx:
                         logger.debug('index bigger than len of sampled cfg')
                         continue
-                    embed_dim = random.choice([i,j])
+                    embed_dim = random.choice([i, j])
                     logger.debug(f'sampled embed_dim:{embed_dim}')
                     for embed_per_block in range(len(embed_dim_index)):
                         crossover_cfg.append(embed_dim)
                         logger.debug(f'appending same embed dim to cfg list:{crossover_cfg}')
             logger.debug(f'final cfg list:{tuple(crossover_cfg)}')
             return tuple(crossover_cfg)
-
-
-                
-            #rstb_num = random.choice([rstb_num_1,rstb_num_2])
-            #crossover_cfg.append(rstb_num)
-            #for i in range(rstb_num):
-            #    if len(mlp_ratio_1) < i+1:
-            #            mlp_ratio = mlp_ratio_2[i]
-            #    elif len(mlp_ratio_2) < i+1:
-            #            mlp_ratio = mlp_ratio_1[i]
-            #    else:
-            #            mlp_ratio = random.choice(mlp_ratio_1[i], mlp_ratio_2[i])  
-            #    crossover_cfg.append(mlp_ratio)
-            #        
-            #    if len(num_heads_1) < i+1:
-            #            num_head = num_heads_2[i]
-            #    elif len(num_heads_2) < i+1:
-            #            num_head = num_heads_1[i]
-            #    else:
-            #            num_head = random.choice(num_head_1[i], num_head_2[i])
-            #    crossover_cfg.append(num_head)
-
-
-
-
-
-            #return tuple(crossover_cfg)
-
         cand_iter = self.stack_random_cand(random_func)
         while len(res) < crossover_num and max_iters > 0:
             max_iters -= 1
@@ -338,7 +309,7 @@ class EvolutionSearcher(object):
             res.append(cand)
             logger.debug(f'crossover {len(res)}/{crossover_num}')
 
-        print('crossover_num = {len(res)}')
+        logger.debug(f'crossover_num = {len(res)}')
         return res
 
     def search(self):
@@ -368,11 +339,11 @@ class EvolutionSearcher(object):
             logger.debug(f'epoch = {self.epoch} : top {len(self.keep_top_k[50])} result')
             tmp_accuracy = []
             for i, cand in enumerate(self.keep_top_k[50]):
-                logger.debug(f'No.{i+1} {cand} val psnr = { self.vis_dict[cand]["psnr"]},'
+                logger.debug(f'No.{i + 1} {cand} val psnr = {self.vis_dict[cand]["psnr"]},'
                              f' params = {self.vis_dict[cand]["params"]}')
                 tmp_accuracy.append(self.vis_dict[cand]['psnr'])
                 with open('swinir_search.json', 'a+')as f:
-                    json.dump({'epoch': self.epoch, 'rank': i+1, 'psnr': self.vis_dict[cand]['psnr'],
+                    json.dump({'epoch': self.epoch, 'rank': i + 1, 'psnr': self.vis_dict[cand]['psnr'],
                                'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
                     f.write("\n")
@@ -409,7 +380,8 @@ def get_args_parser():
 
     # config file
     parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
-    parser.add_argument('--opt-doc', type=str, default='.AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json',
+    parser.add_argument('--opt-doc', type=str,
+                        default='.AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json',
                         help='Path to option JSON file for SwinIR.')
 
     # custom parameters
@@ -571,7 +543,7 @@ def main(args):
     update_config_from_file(args.cfg)
     utils.init_distributed_mode(args)
 
-    print(args)
+    logger.debug(f'args:{args}')
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
 
     # For reading from .json file, major part of .json can be turned into commandline args
@@ -593,27 +565,23 @@ def main(args):
     with open(os.path.join(args.output_dir, "config.yaml"), 'w') as f:
         f.write(args_text)
 
-
     args.prefetcher = not args.no_prefetcher
 
-    #for phase, dataset_opt in opt['datasets'].items():
-
-        # if phase == 'valid':
     valid_set = DatasetSR(opt['datasets']['valid'])
     logger.debug(f"dataset opt:{opt['datasets']['valid']}")
     data_loader_valid = DataLoader(valid_set, batch_size=1,
-                                          shuffle=False, num_workers=8,
-                                          drop_last=False, pin_memory=True)
+                                   shuffle=False, num_workers=8,
+                                   drop_last=False, pin_memory=True)
 
     logger.debug(f"Creating SwinIRTransformer")
     logger.debug(cfg)
     opt_net = opt['netG']
     model = SwinIR(img_size=opt_net['img_size'],
                    window_size=opt_net['window_size'],
-                   depths= cfg.SUPERNET.DEPTHS,
-                   embed_dim= cfg.SUPERNET.EMBED_DIM,
-                   num_heads= cfg.SUPERNET.NUM_HEADS,
-                   mlp_ratio= cfg.SUPERNET.MLP_RATIO,
+                   depths=cfg.SUPERNET.DEPTHS,
+                   embed_dim=cfg.SUPERNET.EMBED_DIM,
+                   num_heads=cfg.SUPERNET.NUM_HEADS,
+                   mlp_ratio=cfg.SUPERNET.MLP_RATIO,
                    upsampler=opt_net['upsampler'],
                    upscale=border)
 
@@ -636,7 +604,7 @@ def main(args):
 
     choices = {'num_heads': cfg.SEARCH_SPACE.NUM_HEADS, 'mlp_ratio': cfg.SEARCH_SPACE.MLP_RATIO,
                'embed_dim': cfg.SEARCH_SPACE.EMBED_DIM, 'rstb_num': cfg.SEARCH_SPACE.RSTB_NUM,
-               'stl_num': cfg.SEARCH_SPACE.STL_NUM }
+               'stl_num': cfg.SEARCH_SPACE.STL_NUM}
 
     t = time.time()
     searcher = EvolutionSearcher(args, device, model, model_without_ddp, choices, data_loader_valid,

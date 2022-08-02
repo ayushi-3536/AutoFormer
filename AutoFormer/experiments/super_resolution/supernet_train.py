@@ -14,12 +14,14 @@ from AutoFormer.experiments.super_resolution.supernet_engine import train_one_ep
 from AutoFormer.lib import utils
 from AutoFormer.lib.config import cfg, update_config_from_file
 from AutoFormer.utils import utils_option as option
-# from models.model_plain import ModelPlain
 from torch.utils.data import DataLoader
 from AutoFormer.data.dataset_sr import DatasetSR
 from torch.utils.data.distributed import DistributedSampler
 from AutoFormer.model.swinIR.network_swinir import SwinIR
+import sys
 
+from loguru import logger
+logger.add(sys.stdout, level='DEBUG')
 
 def get_args_parser():
     parser = argparse.ArgumentParser('AutoFormer training and evaluation script', add_help=False)
@@ -369,7 +371,7 @@ def main(args):
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    print('Training time {}'.format(total_time_str))
+    logger.debug(f'Training time {total_time_str}')
 
 
 if __name__ == '__main__':

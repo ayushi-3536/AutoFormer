@@ -9,8 +9,6 @@ from timm.utils import accuracy, ModelEma
 from AutoFormer.lib import utils
 import random
 import AutoFormer.utils.utils_image as util
-import time
-from AutoFormer.data.dataset_sr import DatasetSR
 
 from loguru import logger
 logger.add(sys.stdout, level='DEBUG')
@@ -152,9 +150,6 @@ def evaluate(data_loader, model, device, amp=True, choices=None, mode='super', r
 
 
     logger.debug(f"sampled model config: {config}")
-    # parameters = model_module.get_sampled_params_numel(config)
-    # logger.debug(f"sampled model parameters: {parameters}")
-
 
     for images, target in metric_logger.log_every(data_loader, 5, header):
         images = images.to(device, non_blocking=True)
@@ -162,22 +157,18 @@ def evaluate(data_loader, model, device, amp=True, choices=None, mode='super', r
         # compute output
         if amp:
             with torch.cuda.amp.autocast():
-                # print(images.shape)
                 output = model(images)
-                print(images.shape, output.shape, target.shape)
         else:
             output = model(images)
     
         E_img = util.tensor2uint(output)
         H_img = util.tensor2uint(target)
-        print(scaling)
         current_psnr = util.calculate_psnr(E_img, H_img, border=scaling)
 
         batch_size = images.shape[0]
         metric_logger.meters['psnr'].update(current_psnr, n=batch_size)
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    print('* AVG_PSNR {psnr.global_avg:.3f}'
-          .format(psnr=metric_logger.psnr))
+    logger.debug('* AVG_PSNR {psnr.global_avg:.3f}'.format(psnr=metric_logger.psnr))
 
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}

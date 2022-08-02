@@ -9,7 +9,6 @@ from AutoFormer.lib import utils
 from AutoFormer.experiments.super_resolution.supernet_engine import evaluate
 from AutoFormer.model.swinIR.network_swinir import SwinIR
 from AutoFormer.data.dataset_sr import DatasetSR
-from torch.utils.data.distributed import DistributedSampler
 import argparse
 import os
 import yaml
@@ -21,13 +20,14 @@ import json
 
 logger.add(sys.stdout, level='DEBUG')
 
+
 def decode_cand_tuple(cand_tuple):
     logger.debug(f'cand tuple:{cand_tuple}')
     # Example: (3, 1.5, 1.0, 1.5, 5, 5, 5, 45, 45, 60, 2)
     rstb_num = cand_tuple[0]
-    return rstb_num, list(cand_tuple[1:rstb_num + 1]),\
-           list(cand_tuple[rstb_num + 1: 2 * rstb_num + 1]),\
-           list(cand_tuple[2*rstb_num + 1: 3 * rstb_num + 1]),\
+    return rstb_num, list(cand_tuple[1:rstb_num + 1]), \
+           list(cand_tuple[rstb_num + 1: 2 * rstb_num + 1]), \
+           list(cand_tuple[2 * rstb_num + 1: 3 * rstb_num + 1]), \
            cand_tuple[-1]
 
 
@@ -91,15 +91,15 @@ class RandomSearcher(object):
             return False
         rstb_num, mlp_ratio, num_heads, embed_dim, stl_num = decode_cand_tuple(cand)
 
-
-        logger.debug(f'rstb_num:{rstb_num}, mlp_ratio"{mlp_ratio}, numhead:{num_heads}, embed dim:{embed_dim}, stl_num:{stl_num}')
+        logger.debug(
+            f'rstb_num:{rstb_num}, mlp_ratio"{mlp_ratio}, numhead:{num_heads}, embed dim:{embed_dim}, stl_num:{stl_num}')
         sampled_config = {}
         sampled_config['rstb_num'] = rstb_num
         sampled_config['stl_num'] = stl_num
         sampled_config['num_heads'] = num_heads
         sampled_config['embed_dim'] = embed_dim
         sampled_config['mlp_ratio'] = mlp_ratio
-        
+
         logger.debug(f'sampled_config:{sampled_config}')
 
         n_parameters = self.model_without_ddp.get_sampled_params_numel(sampled_config)
@@ -120,7 +120,7 @@ class RandomSearcher(object):
         #                       retrain_config=sampled_config)
         logger.debug(f'eval stats:{eval_stats}')
         info['psnr'] = eval_stats['psnr']
-        #info['test_acc'] = test_stats['acc1']
+        # info['test_acc'] = test_stats['acc1']
 
         info['visited'] = True
 
@@ -182,8 +182,6 @@ class RandomSearcher(object):
             logger.debug(f'random {len(self.candidates)}/{num}')
         logger.debug(f'random_num = {len(self.candidates)}')
 
-
-
     def search(self):
         logger.debug(f'population_num = {self.population_num}'
                      f' select_num = {self.select_num}'
@@ -208,17 +206,15 @@ class RandomSearcher(object):
             logger.debug(f'epoch = {self.epoch} : top {len(self.keep_top_k[50])} result')
             tmp_accuracy = []
             for i, cand in enumerate(self.keep_top_k[50]):
-                logger.debug(f'No.{i+1} {cand} val psnr = { self.vis_dict[cand]["psnr"]},'
+                logger.debug(f'No.{i + 1} {cand} val psnr = {self.vis_dict[cand]["psnr"]},'
                              f' params = {self.vis_dict[cand]["params"]}')
                 tmp_accuracy.append(self.vis_dict[cand]['psnr'])
                 with open('swinir_search_random.json', 'a+')as f:
-                    json.dump({'epoch': self.epoch, 'rank': i+1, 'psnr': self.vis_dict[cand]['psnr'],
+                    json.dump({'epoch': self.epoch, 'rank': i + 1, 'psnr': self.vis_dict[cand]['psnr'],
                                'params': self.vis_dict[cand]['params'], 'cand': cand}, f)
 
                     f.write("\n")
             self.top_accuracies.append(tmp_accuracy)
-
-
 
             self.candidates = []
 
@@ -243,7 +239,8 @@ def get_args_parser():
 
     # config file
     parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
-    parser.add_argument('--opt-doc', type=str, default='.AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json',
+    parser.add_argument('--opt-doc', type=str,
+                        default='.AutoFormer/experiments_configs/supernet-swinir/train_swinir_sr_lightweight.json',
                         help='Path to option JSON file for SwinIR.')
 
     # custom parameters
@@ -405,7 +402,7 @@ def main(args):
     update_config_from_file(args.cfg)
     utils.init_distributed_mode(args)
 
-    print(args)
+    logger.debug(f'args:{args}')
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
 
     # For reading from .json file, major part of .json can be turned into commandline args
@@ -427,27 +424,26 @@ def main(args):
     with open(os.path.join(args.output_dir, "config.yaml"), 'w') as f:
         f.write(args_text)
 
-
     args.prefetcher = not args.no_prefetcher
 
-    #for phase, dataset_opt in opt['datasets'].items():
+    # for phase, dataset_opt in opt['datasets'].items():
 
-        # if phase == 'valid':
+    # if phase == 'valid':
     valid_set = DatasetSR(opt['datasets']['valid'])
     logger.debug(f"dataset opt:{opt['datasets']['valid']}")
     data_loader_valid = DataLoader(valid_set, batch_size=1,
-                                          shuffle=False, num_workers=8,
-                                          drop_last=False, pin_memory=True)
+                                   shuffle=False, num_workers=8,
+                                   drop_last=False, pin_memory=True)
 
     logger.debug(f"Creating SwinIRTransformer")
     logger.debug(cfg)
     opt_net = opt['netG']
     model = SwinIR(img_size=opt_net['img_size'],
                    window_size=opt_net['window_size'],
-                   depths= cfg.SUPERNET.DEPTHS,
-                   embed_dim= cfg.SUPERNET.EMBED_DIM,
-                   num_heads= cfg.SUPERNET.NUM_HEADS,
-                   mlp_ratio= cfg.SUPERNET.MLP_RATIO,
+                   depths=cfg.SUPERNET.DEPTHS,
+                   embed_dim=cfg.SUPERNET.EMBED_DIM,
+                   num_heads=cfg.SUPERNET.NUM_HEADS,
+                   mlp_ratio=cfg.SUPERNET.MLP_RATIO,
                    upsampler=opt_net['upsampler'],
                    upscale=border)
 
@@ -470,11 +466,11 @@ def main(args):
 
     choices = {'num_heads': cfg.SEARCH_SPACE.NUM_HEADS, 'mlp_ratio': cfg.SEARCH_SPACE.MLP_RATIO,
                'embed_dim': cfg.SEARCH_SPACE.EMBED_DIM, 'rstb_num': cfg.SEARCH_SPACE.RSTB_NUM,
-               'stl_num': cfg.SEARCH_SPACE.STL_NUM }
+               'stl_num': cfg.SEARCH_SPACE.STL_NUM}
 
     t = time.time()
     searcher = RandomSearcher(args, device, model, model_without_ddp, choices, data_loader_valid,
-                                 args.output_dir)
+                              args.output_dir)
 
     searcher.search()
 
